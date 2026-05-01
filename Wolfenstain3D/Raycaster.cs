@@ -25,7 +25,7 @@ namespace Wolfenstain3D
             for (int column = 0; column < viewport.Width; column++)
             {
                 float rayAngle = startAngle + column * angleStep; // Кут поточного променя
-                RayHit hit = CastRay(player.X, player.Y, rayAngle, map); // Шукаємо точку зіткнення зі стіною
+                RayHit hit = CastRay(player.X, player.Y, rayAngle, map); // Шукаємо точку зіткнення зі стіною або дверима
 
                 float correctedDistance = hit.Distance * MathF.Cos(rayAngle - player.Angle); // Прибираємо ефект "риб’ячого ока"
                 correctedDistance = MathF.Max(correctedDistance, 1f); // Захист від ділення на нуль
@@ -35,26 +35,12 @@ namespace Wolfenstain3D
                 float wallBottom = wallTop + wallHeight; // Нижня точка стіни
 
                 int shade = CalculateWallShade(correctedDistance); // Яскравість стіни залежно від відстані
-
-                Color wallColor;
-
-                if (hit.IsDoor)
-                {
-                    wallColor = Color.FromArgb(shade, shade * 3 / 4, shade / 3); // Двері малюємо теплішим коричнево-золотим кольором
-                }
-                else
-                {
-                    wallColor = Color.FromArgb(shade, shade, shade); // Звичайні стіни малюємо сірими
-                }
+                Color wallColor = hit.IsDoor
+                    ? Color.FromArgb(shade, shade * 3 / 4, shade / 3) // Двері малюємо теплішим коричнево-золотим кольором
+                    : Color.FromArgb(shade, shade, shade); // Звичайні стіни малюємо сірими
 
                 using Brush wallBrush = new SolidBrush(wallColor); // Колір поточної колонки стіни
-
-                graphics.FillRectangle(
-                    wallBrush,
-                    viewport.X + column,
-                    wallTop,
-                    1,
-                    wallBottom - wallTop); // Малюємо одну вертикальну колонку стіни
+                graphics.FillRectangle(wallBrush, viewport.X + column, wallTop, 1, wallBottom - wallTop); // Малюємо одну вертикальну колонку стіни
             }
         }
 
@@ -68,7 +54,7 @@ namespace Wolfenstain3D
             for (int i = 0; i < MiniMapRayCount; i++)
             {
                 float rayAngle = startAngle + angleStep * i; // Поточний кут променя
-                RayHit hit = CastRay(player.X, player.Y, rayAngle, map); // Точка, де промінь зустрів стіну
+                RayHit hit = CastRay(player.X, player.Y, rayAngle, map); // Точка, де промінь зустрів перешкоду
 
                 float startX = mapX + player.X * miniMapScale; // Початок променя на міні-мапі по X
                 float startY = mapY + player.Y * miniMapScale; // Початок променя на міні-мапі по Y
@@ -92,9 +78,9 @@ namespace Wolfenstain3D
                 int tileX = (int)(rayX / map.TileSize); // Клітинка карти по X
                 int tileY = (int)(rayY / map.TileSize); // Клітинка карти по Y
 
-                if (map.IsWall(tileX, tileY))
+                if (map.IsBlocking(rayX, rayY))
                 {
-                    bool isDoor = map.IsDoor(tileX, tileY); // Перевіряємо, чи це саме двері
+                    bool isDoor = map.IsDoor(tileX, tileY) && !map.IsDoorOpen(tileX, tileY); // Визначаємо, чи це ще не відкрита повністю дверна панель
                     return new RayHit(new PointF(rayX, rayY), distance, isDoor); // Повертаємо точку, відстань і тип перешкоди
                 }
             }

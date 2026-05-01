@@ -70,15 +70,15 @@ namespace Wolfenstain3D
 
         private bool TouchesWall(float x, float y, GameMap map)
         {
-            int leftTile = (int)((x - CollisionRadius) / map.TileSize); // Ліва межа гравця
-            int rightTile = (int)((x + CollisionRadius) / map.TileSize); // Права межа гравця
-            int topTile = (int)((y - CollisionRadius) / map.TileSize); // Верхня межа гравця
-            int bottomTile = (int)((y + CollisionRadius) / map.TileSize); // Нижня межа гравця
+            float leftX = x - CollisionRadius; // Ліва межа кола гравця
+            float rightX = x + CollisionRadius; // Права межа кола гравця
+            float topY = y - CollisionRadius; // Верхня межа кола гравця
+            float bottomY = y + CollisionRadius; // Нижня межа кола гравця
 
-            return map.IsWall(leftTile, topTile)
-                || map.IsWall(rightTile, topTile)
-                || map.IsWall(leftTile, bottomTile)
-                || map.IsWall(rightTile, bottomTile); // Якщо хоча б один кут у стіні, рух заборонений
+            return map.IsBlocking(leftX, topY)
+                || map.IsBlocking(rightX, topY)
+                || map.IsBlocking(leftX, bottomY)
+                || map.IsBlocking(rightX, bottomY); // Перевіряємо 4 кути кола гравця відносно дверей і стін
         }
 
         public void RenderDebugInfo(Graphics graphics, int x, int y)

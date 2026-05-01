@@ -38,6 +38,7 @@ namespace Wolfenstain3D
 
         private void Update()
         {
+            _map.UpdateDoors(); // Плавно оновлюємо стан і прогрес дверей
             _player.Update(_input, _map); // Оновлюємо гравця з урахуванням карти та collision
         }
 
@@ -55,7 +56,7 @@ namespace Wolfenstain3D
 
             int miniMapX = 710; // X-позиція міні-мапи справа
             int miniMapY = 20; // Y-позиція міні-мапи зверху
-            int miniMapCellSize = 22; // Розмір клітинки міні-мапи
+            int miniMapCellSize = Math.Max(10, Math.Min(14, Math.Min(350 / _map.Width, 350 / _map.Height))); // Підбираємо розмір клітинки, щоб карта вмістилася
             float miniMapScale = (float)miniMapCellSize / _map.TileSize; // Масштаб зі світу гри в міні-мапу
 
             _map.RenderMiniMap(graphics, miniMapX, miniMapY, miniMapCellSize); // Малюємо карту поверх 3D як debug overlay
