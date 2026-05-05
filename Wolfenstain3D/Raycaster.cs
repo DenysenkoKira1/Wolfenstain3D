@@ -1,236 +1,283 @@
-using System; // Потрібно для MathF
-using System.Drawing; // Потрібно для Graphics, Pen, Color, Rectangle, PointF, Bitmap
-using System.Drawing.Imaging; // Потрібно для PixelFormat
+п»їusing System; // РџРѕС‚СЂС–Р±РЅРѕ РґР»СЏ MathF
+using System.Drawing; // РџРѕС‚СЂС–Р±РЅРѕ РґР»СЏ Graphics, Pen, Color, Rectangle, PointF, Bitmap
+using System.Drawing.Imaging; // РџРѕС‚СЂС–Р±РЅРѕ РґР»СЏ PixelFormat, BitmapData, ImageLockMode
+using System.Runtime.InteropServices; // РџРѕС‚СЂС–Р±РЅРѕ РґР»СЏ С€РІРёРґРєРѕРіРѕ РєРѕРїС–СЋРІР°РЅРЅСЏ РјР°СЃРёРІСѓ РїС–РєСЃРµР»С–РІ Сѓ Bitmap
 
 namespace Wolfenstain3D
 {
     internal class Raycaster
     {
-        private const int MiniMapRayCount = 31; // Кількість променів для debug-відображення на міні-мапі
-        private const float FieldOfView = MathF.PI / 3; // Кут огляду 60 градусів
-        private const float MaxRayDistance = 500f; // Максимальна довжина променя
-        private const float RayStep = 2f; // Крок перевірки променя
+        private const int MiniMapRayCount = 31; // РљС–Р»СЊРєС–СЃС‚СЊ РїСЂРѕРјРµРЅС–РІ РґР»СЏ debug-РІС–РґРѕР±СЂР°Р¶РµРЅРЅСЏ РЅР° РјС–РЅС–-РјР°РїС–
+        private const float FieldOfView = MathF.PI / 3; // РљСѓС‚ РѕРіР»СЏРґСѓ 60 РіСЂР°РґСѓСЃС–РІ
+        private const float MaxRayDistance = 500f; // РњР°РєСЃРёРјР°Р»СЊРЅР° РґРѕРІР¶РёРЅР° РїСЂРѕРјРµРЅСЏ
+        private const float RayStep = 2f; // РљСЂРѕРє РїРµСЂРµРІС–СЂРєРё РїСЂРѕРјРµРЅСЏ
 
-        private readonly WallTexture _wallTexture = new WallTexture(); // Текстура для звичайних стін
-        private readonly DoorTexture _doorTexture = new DoorTexture(); // Текстура для бірюзових дверей із золотою ручкою
-        private readonly FloorTexture _floorTexture = new FloorTexture(); // Текстура для темної плиткової підлоги
-        private readonly CeilingTexture _ceilingTexture = new CeilingTexture(); // Текстура для світлої технічної стелі
+        private readonly WallTexture _wallTexture = new WallTexture(); // РўРµРєСЃС‚СѓСЂР° РґР»СЏ Р·РІРёС‡Р°Р№РЅРёС… СЃС‚С–РЅ
+        private readonly DoorTexture _doorTexture = new DoorTexture(); // РўРµРєСЃС‚СѓСЂР° РґР»СЏ Р±С–СЂСЋР·РѕРІРёС… РґРІРµСЂРµР№ С–Р· Р·РѕР»РѕС‚РѕСЋ РµРјР±Р»РµРјРѕСЋ
+        private readonly FloorTexture _floorTexture = new FloorTexture(); // РўРµРєСЃС‚СѓСЂР° РґР»СЏ РїСЂРѕСЃС‚РѕС— СЃС–СЂРѕС— РїС–РґР»РѕРіРё
+        private readonly CeilingTexture _ceilingTexture = new CeilingTexture(); // РўРµРєСЃС‚СѓСЂР° РґР»СЏ С‚РµРјРЅРѕ-СЃС–СЂРѕС— СЃС‚РµР»С–
 
         public void Render3D(Graphics graphics, Player player, GameMap map, Rectangle viewport)
         {
-            using Bitmap sceneBuffer = new Bitmap(viewport.Width, viewport.Height, PixelFormat.Format32bppArgb); // Буфер для стелі, підлоги, стін і дверей
+            int[] framePixels = new int[viewport.Width * viewport.Height]; // РњР°СЃРёРІ РїС–РєСЃРµР»С–РІ СѓСЃСЊРѕРіРѕ РєР°РґСЂСѓ
+            float projectionDistance = viewport.Width / (2f * MathF.Tan(FieldOfView / 2f)); // Р’С–РґСЃС‚Р°РЅСЊ РґРѕ СѓСЏРІРЅРѕС— РїР»РѕС‰РёРЅРё РїСЂРѕС”РєС†С–С—
+            float angleStep = FieldOfView / viewport.Width; // РћРґРёРЅ РїСЂРѕРјС–РЅСЊ РЅР° РєРѕР¶РЅСѓ РІРµСЂС‚РёРєР°Р»СЊРЅСѓ РєРѕР»РѕРЅРєСѓ РµРєСЂР°РЅР°
+            float startAngle = player.Angle - FieldOfView / 2f; // РџРѕС‡Р°С‚РєРѕРІРёР№ РєСѓС‚ Р»С–РІРѕРіРѕ РєСЂР°СЋ РѕРіР»СЏРґСѓ
 
-            float projectionDistance = viewport.Width / (2f * MathF.Tan(FieldOfView / 2f)); // Відстань до уявної площини проєкції
-            float angleStep = FieldOfView / viewport.Width; // Один промінь на кожну вертикальну колонку екрана
-            float startAngle = player.Angle - FieldOfView / 2f; // Початковий кут лівого краю огляду
+            RenderCeiling(framePixels, viewport.Width, viewport.Height, player, map, projectionDistance, startAngle, angleStep); // РњР°Р»СЋС”РјРѕ СЃС‚РµР»СЋ РІ РјР°СЃРёРІ РєР°РґСЂСѓ
+            RenderFloor(framePixels, viewport.Width, viewport.Height, player, map, projectionDistance, startAngle, angleStep); // РњР°Р»СЋС”РјРѕ РїС–РґР»РѕРіСѓ РІ РјР°СЃРёРІ РєР°РґСЂСѓ
+            RenderWalls(framePixels, viewport.Width, viewport.Height, player, map, projectionDistance, startAngle, angleStep); // РњР°Р»СЋС”РјРѕ СЃС‚С–РЅРё С– РґРІРµСЂС– РїРѕРІРµСЂС… СЃС‚РµР»С– С‚Р° РїС–РґР»РѕРіРё
+            FillHorizonLine(framePixels, viewport.Width, viewport.Height); // Р—Р°РєСЂРёРІР°С”РјРѕ Р»С–РЅС–СЋ РіРѕСЂРёР·РѕРЅС‚Сѓ, СЏРєСѓ РЅРµ РјР°Р»СЋС” РЅС– СЃС‚РµР»СЏ, РЅС– РїС–РґР»РѕРіР°
 
-            RenderCeiling(sceneBuffer, player, map, projectionDistance, startAngle, angleStep); // Малюємо текстуровану стелю з перспективою
-            RenderFloor(sceneBuffer, player, map, projectionDistance, startAngle, angleStep); // Малюємо текстуровану підлогу з перспективою
-            RenderWalls(sceneBuffer, player, map, viewport, projectionDistance, startAngle, angleStep); // Малюємо стіни і двері поверх стелі та підлоги
+            using Bitmap sceneBitmap = new Bitmap(viewport.Width, viewport.Height, PixelFormat.Format32bppArgb); // Bitmap РїРѕС‚СЂС–Р±РµРЅ С‚С–Р»СЊРєРё РґР»СЏ РїРѕРєР°Р·Сѓ РіРѕС‚РѕРІРѕРіРѕ РєР°РґСЂСѓ
+            CopyFrameToBitmap(framePixels, sceneBitmap); // РЁРІРёРґРєРѕ РєРѕРїС–СЋС”РјРѕ РјР°СЃРёРІ РїС–РєСЃРµР»С–РІ Сѓ Bitmap РѕРґРЅРёРј Р±Р»РѕРєРѕРј
 
-            graphics.DrawImageUnscaled(sceneBuffer, viewport.X, viewport.Y); // Накладаємо готову 3D-сцену на форму
+            graphics.DrawImageUnscaled(sceneBitmap, viewport.X, viewport.Y); // РќР°РєР»Р°РґР°С”РјРѕ РіРѕС‚РѕРІСѓ 3D-СЃС†РµРЅСѓ РЅР° С„РѕСЂРјСѓ
         }
 
         public void RenderMiniMapRays(Graphics graphics, Player player, GameMap map, int mapX, int mapY, float miniMapScale)
         {
-            using Pen rayPen = new Pen(Color.FromArgb(140, Color.Yellow), 1); // Колір променів на міні-мапі
+            using Pen rayPen = new Pen(Color.FromArgb(140, Color.Yellow), 1); // РљРѕР»С–СЂ РїСЂРѕРјРµРЅС–РІ РЅР° РјС–РЅС–-РјР°РїС–
 
-            float startAngle = player.Angle - FieldOfView / 2; // Початковий кут лівого променя
-            float angleStep = FieldOfView / (MiniMapRayCount - 1); // Відстань між променями за кутом
+            float startAngle = player.Angle - FieldOfView / 2; // РџРѕС‡Р°С‚РєРѕРІРёР№ РєСѓС‚ Р»С–РІРѕРіРѕ РїСЂРѕРјРµРЅСЏ
+            float angleStep = FieldOfView / (MiniMapRayCount - 1); // Р’С–РґСЃС‚Р°РЅСЊ РјС–Р¶ РїСЂРѕРјРµРЅСЏРјРё Р·Р° РєСѓС‚РѕРј
 
             for (int i = 0; i < MiniMapRayCount; i++)
             {
-                float rayAngle = startAngle + angleStep * i; // Поточний кут променя
-                RayHit hit = CastRay(player.X, player.Y, rayAngle, map); // Точка, де промінь зустрів перешкоду
+                float rayAngle = startAngle + angleStep * i; // РџРѕС‚РѕС‡РЅРёР№ РєСѓС‚ РїСЂРѕРјРµРЅСЏ
+                RayHit hit = CastRay(player.X, player.Y, rayAngle, map); // РўРѕС‡РєР°, РґРµ РїСЂРѕРјС–РЅСЊ Р·СѓСЃС‚СЂС–РІ РїРµСЂРµС€РєРѕРґСѓ
 
-                float startX = mapX + player.X * miniMapScale; // Початок променя на міні-мапі по X
-                float startY = mapY + player.Y * miniMapScale; // Початок променя на міні-мапі по Y
-                float endX = mapX + hit.Point.X * miniMapScale; // Кінець променя на міні-мапі по X
-                float endY = mapY + hit.Point.Y * miniMapScale; // Кінець променя на міні-мапі по Y
+                float startX = mapX + player.X * miniMapScale; // РџРѕС‡Р°С‚РѕРє РїСЂРѕРјРµРЅСЏ РЅР° РјС–РЅС–-РјР°РїС– РїРѕ X
+                float startY = mapY + player.Y * miniMapScale; // РџРѕС‡Р°С‚РѕРє РїСЂРѕРјРµРЅСЏ РЅР° РјС–РЅС–-РјР°РїС– РїРѕ Y
+                float endX = mapX + hit.Point.X * miniMapScale; // РљС–РЅРµС†СЊ РїСЂРѕРјРµРЅСЏ РЅР° РјС–РЅС–-РјР°РїС– РїРѕ X
+                float endY = mapY + hit.Point.Y * miniMapScale; // РљС–РЅРµС†СЊ РїСЂРѕРјРµРЅСЏ РЅР° РјС–РЅС–-РјР°РїС– РїРѕ Y
 
-                graphics.DrawLine(rayPen, startX, startY, endX, endY); // Малюємо промінь
+                graphics.DrawLine(rayPen, startX, startY, endX, endY); // РњР°Р»СЋС”РјРѕ РїСЂРѕРјС–РЅСЊ
             }
         }
 
-        private void RenderCeiling(Bitmap sceneBuffer, Player player, GameMap map, float projectionDistance, float startAngle, float angleStep)
+        private void RenderCeiling(int[] framePixels, int frameWidth, int frameHeight, Player player, GameMap map, float projectionDistance, float startAngle, float angleStep)
         {
-            int horizon = sceneBuffer.Height / 2; // Лінія горизонту, вище якої починається стеля
-            float cameraHeight = map.TileSize / 2f; // Умовна висота очей гравця відносно стелі та підлоги
+            int horizon = frameHeight / 2; // Р›С–РЅС–СЏ РіРѕСЂРёР·РѕРЅС‚Сѓ, РІРёС‰Рµ СЏРєРѕС— РїРѕС‡РёРЅР°С”С‚СЊСЃСЏ СЃС‚РµР»СЏ
+            float cameraHeight = map.TileSize / 2f; // РЈРјРѕРІРЅР° РІРёСЃРѕС‚Р° РѕС‡РµР№ РіСЂР°РІС†СЏ РІС–РґРЅРѕСЃРЅРѕ СЃС‚РµР»С– С‚Р° РїС–РґР»РѕРіРё
 
             for (int screenY = 0; screenY < horizon; screenY++)
             {
-                float yOffset = horizon - screenY; // Відстань пікселя стелі від горизонту
-                float correctedDistance = cameraHeight * projectionDistance / yOffset; // Перпендикулярна відстань до точки стелі
-                int shade = CalculateCeilingShade(correctedDistance); // Затемнення стелі залежно від відстані
+                float yOffset = horizon - screenY; // Р’С–РґСЃС‚Р°РЅСЊ РїС–РєСЃРµР»СЏ СЃС‚РµР»С– РІС–Рґ РіРѕСЂРёР·РѕРЅС‚Сѓ
+                float correctedDistance = cameraHeight * projectionDistance / yOffset; // РџРµСЂРїРµРЅРґРёРєСѓР»СЏСЂРЅР° РІС–РґСЃС‚Р°РЅСЊ РґРѕ С‚РѕС‡РєРё СЃС‚РµР»С–
+                int shade = CalculateCeilingShade(correctedDistance); // Р—Р°С‚РµРјРЅРµРЅРЅСЏ СЃС‚РµР»С– Р·Р°Р»РµР¶РЅРѕ РІС–Рґ РІС–РґСЃС‚Р°РЅС–
+                int rowStart = screenY * frameWidth; // РџРѕС‡Р°С‚РѕРє СЂСЏРґРєР° РІ РјР°СЃРёРІС– РєР°РґСЂСѓ
 
-                for (int column = 0; column < sceneBuffer.Width; column++)
+                for (int column = 0; column < frameWidth; column++)
                 {
-                    float rayAngle = startAngle + column * angleStep; // Кут променя для цього пікселя стелі
-                    float rayDistance = correctedDistance / MathF.Cos(rayAngle - player.Angle); // Реальна відстань уздовж променя без риб'ячого ока
-                    float worldX = player.X + MathF.Cos(rayAngle) * rayDistance; // X точки стелі у світі
-                    float worldY = player.Y + MathF.Sin(rayAngle) * rayDistance; // Y точки стелі у світі
+                    float rayAngle = startAngle + column * angleStep; // РљСѓС‚ РїСЂРѕРјРµРЅСЏ РґР»СЏ С†СЊРѕРіРѕ РїС–РєСЃРµР»СЏ СЃС‚РµР»С–
+                    float rayDistance = correctedDistance / MathF.Cos(rayAngle - player.Angle); // Р РµР°Р»СЊРЅР° РІС–РґСЃС‚Р°РЅСЊ СѓР·РґРѕРІР¶ РїСЂРѕРјРµРЅСЏ Р±РµР· СЂРёР±'СЏС‡РѕРіРѕ РѕРєР°
+                    float worldX = player.X + MathF.Cos(rayAngle) * rayDistance; // X С‚РѕС‡РєРё СЃС‚РµР»С– Сѓ СЃРІС–С‚С–
+                    float worldY = player.Y + MathF.Sin(rayAngle) * rayDistance; // Y С‚РѕС‡РєРё СЃС‚РµР»С– Сѓ СЃРІС–С‚С–
 
-                    int textureX = PositiveModulo((int)worldX, CeilingTexture.Size); // X у повторюваній текстурі стелі
-                    int textureY = PositiveModulo((int)worldY, CeilingTexture.Size); // Y у повторюваній текстурі стелі
-                    Color textureColor = _ceilingTexture.GetPixel(textureX, textureY); // Колір панелі стелі в цій точці
-                    Color ceilingColor = ApplyShade(textureColor, shade); // Затемнюємо стелю на відстані
+                    int textureX = PositiveModulo((int)worldX, CeilingTexture.Size); // X Сѓ РїРѕРІС‚РѕСЂСЋРІР°РЅС–Р№ С‚РµРєСЃС‚СѓСЂС– СЃС‚РµР»С–
+                    int textureY = PositiveModulo((int)worldY, CeilingTexture.Size); // Y Сѓ РїРѕРІС‚РѕСЂСЋРІР°РЅС–Р№ С‚РµРєСЃС‚СѓСЂС– СЃС‚РµР»С–
+                    Color textureColor = _ceilingTexture.GetPixel(textureX, textureY); // РљРѕР»С–СЂ СЃС‚РµР»С– РІ С†С–Р№ С‚РѕС‡С†С–
+                    Color ceilingColor = ApplyShade(textureColor, shade); // Р—Р°С‚РµРјРЅСЋС”РјРѕ СЃС‚РµР»СЋ РЅР° РІС–РґСЃС‚Р°РЅС–
 
-                    sceneBuffer.SetPixel(column, screenY, ceilingColor); // Записуємо піксель стелі в буфер сцени
+                    framePixels[rowStart + column] = ceilingColor.ToArgb(); // Р—Р°РїРёСЃСѓС”РјРѕ РїС–РєСЃРµР»СЊ СЃС‚РµР»С– РІ РјР°СЃРёРІ РєР°РґСЂСѓ
                 }
             }
         }
 
-        private void RenderFloor(Bitmap sceneBuffer, Player player, GameMap map, float projectionDistance, float startAngle, float angleStep)
+        private void RenderFloor(int[] framePixels, int frameWidth, int frameHeight, Player player, GameMap map, float projectionDistance, float startAngle, float angleStep)
         {
-            int horizon = sceneBuffer.Height / 2; // Лінія горизонту, нижче якої починається підлога
-            float cameraHeight = map.TileSize / 2f; // Умовна висота очей гравця над підлогою
+            int horizon = frameHeight / 2; // Р›С–РЅС–СЏ РіРѕСЂРёР·РѕРЅС‚Сѓ, РЅРёР¶С‡Рµ СЏРєРѕС— РїРѕС‡РёРЅР°С”С‚СЊСЃСЏ РїС–РґР»РѕРіР°
+            float cameraHeight = map.TileSize / 2f; // РЈРјРѕРІРЅР° РІРёСЃРѕС‚Р° РѕС‡РµР№ РіСЂР°РІС†СЏ РЅР°Рґ РїС–РґР»РѕРіРѕСЋ
 
-            for (int screenY = horizon + 1; screenY < sceneBuffer.Height; screenY++)
+            for (int screenY = horizon + 1; screenY < frameHeight; screenY++)
             {
-                float yOffset = screenY - horizon; // Відстань пікселя підлоги від горизонту
-                float correctedDistance = cameraHeight * projectionDistance / yOffset; // Перпендикулярна відстань до точки підлоги
-                int shade = CalculateFloorShade(correctedDistance); // Затемнення підлоги залежно від відстані
+                float yOffset = screenY - horizon; // Р’С–РґСЃС‚Р°РЅСЊ РїС–РєСЃРµР»СЏ РїС–РґР»РѕРіРё РІС–Рґ РіРѕСЂРёР·РѕРЅС‚Сѓ
+                float correctedDistance = cameraHeight * projectionDistance / yOffset; // РџРµСЂРїРµРЅРґРёРєСѓР»СЏСЂРЅР° РІС–РґСЃС‚Р°РЅСЊ РґРѕ С‚РѕС‡РєРё РїС–РґР»РѕРіРё
+                int shade = CalculateFloorShade(correctedDistance); // Р—Р°С‚РµРјРЅРµРЅРЅСЏ РїС–РґР»РѕРіРё Р·Р°Р»РµР¶РЅРѕ РІС–Рґ РІС–РґСЃС‚Р°РЅС–
+                int rowStart = screenY * frameWidth; // РџРѕС‡Р°С‚РѕРє СЂСЏРґРєР° РІ РјР°СЃРёРІС– РєР°РґСЂСѓ
 
-                for (int column = 0; column < sceneBuffer.Width; column++)
+                for (int column = 0; column < frameWidth; column++)
                 {
-                    float rayAngle = startAngle + column * angleStep; // Кут променя для цього пікселя підлоги
-                    float rayDistance = correctedDistance / MathF.Cos(rayAngle - player.Angle); // Реальна відстань уздовж променя без риб'ячого ока
-                    float worldX = player.X + MathF.Cos(rayAngle) * rayDistance; // X точки підлоги у світі
-                    float worldY = player.Y + MathF.Sin(rayAngle) * rayDistance; // Y точки підлоги у світі
+                    float rayAngle = startAngle + column * angleStep; // РљСѓС‚ РїСЂРѕРјРµРЅСЏ РґР»СЏ С†СЊРѕРіРѕ РїС–РєСЃРµР»СЏ РїС–РґР»РѕРіРё
+                    float rayDistance = correctedDistance / MathF.Cos(rayAngle - player.Angle); // Р РµР°Р»СЊРЅР° РІС–РґСЃС‚Р°РЅСЊ СѓР·РґРѕРІР¶ РїСЂРѕРјРµРЅСЏ Р±РµР· СЂРёР±'СЏС‡РѕРіРѕ РѕРєР°
+                    float worldX = player.X + MathF.Cos(rayAngle) * rayDistance; // X С‚РѕС‡РєРё РїС–РґР»РѕРіРё Сѓ СЃРІС–С‚С–
+                    float worldY = player.Y + MathF.Sin(rayAngle) * rayDistance; // Y С‚РѕС‡РєРё РїС–РґР»РѕРіРё Сѓ СЃРІС–С‚С–
 
-                    int textureX = PositiveModulo((int)worldX, FloorTexture.Size); // X у повторюваній текстурі підлоги
-                    int textureY = PositiveModulo((int)worldY, FloorTexture.Size); // Y у повторюваній текстурі підлоги
-                    Color textureColor = _floorTexture.GetPixel(textureX, textureY); // Колір плитки в цій точці
-                    Color floorColor = ApplyShade(textureColor, shade); // Затемнюємо підлогу на відстані
+                    int textureX = PositiveModulo((int)worldX, FloorTexture.Size); // X Сѓ РїРѕРІС‚РѕСЂСЋРІР°РЅС–Р№ С‚РµРєСЃС‚СѓСЂС– РїС–РґР»РѕРіРё
+                    int textureY = PositiveModulo((int)worldY, FloorTexture.Size); // Y Сѓ РїРѕРІС‚РѕСЂСЋРІР°РЅС–Р№ С‚РµРєСЃС‚СѓСЂС– РїС–РґР»РѕРіРё
+                    Color textureColor = _floorTexture.GetPixel(textureX, textureY); // РљРѕР»С–СЂ РїС–РґР»РѕРіРё РІ С†С–Р№ С‚РѕС‡С†С–
+                    Color floorColor = ApplyShade(textureColor, shade); // Р—Р°С‚РµРјРЅСЋС”РјРѕ РїС–РґР»РѕРіСѓ РЅР° РІС–РґСЃС‚Р°РЅС–
 
-                    sceneBuffer.SetPixel(column, screenY, floorColor); // Записуємо піксель підлоги в буфер сцени
+                    framePixels[rowStart + column] = floorColor.ToArgb(); // Р—Р°РїРёСЃСѓС”РјРѕ РїС–РєСЃРµР»СЊ РїС–РґР»РѕРіРё РІ РјР°СЃРёРІ РєР°РґСЂСѓ
                 }
             }
         }
 
-        private void RenderWalls(Bitmap sceneBuffer, Player player, GameMap map, Rectangle viewport, float projectionDistance, float startAngle, float angleStep)
+        private void RenderWalls(int[] framePixels, int frameWidth, int frameHeight, Player player, GameMap map, float projectionDistance, float startAngle, float angleStep)
         {
-            for (int column = 0; column < viewport.Width; column++)
+            for (int column = 0; column < frameWidth; column++)
             {
-                float rayAngle = startAngle + column * angleStep; // Кут поточного променя
-                RayHit hit = CastRay(player.X, player.Y, rayAngle, map); // Шукаємо точку зіткнення зі стіною або дверима
+                float rayAngle = startAngle + column * angleStep; // РљСѓС‚ РїРѕС‚РѕС‡РЅРѕРіРѕ РїСЂРѕРјРµРЅСЏ
+                RayHit hit = CastRay(player.X, player.Y, rayAngle, map); // РЁСѓРєР°С”РјРѕ С‚РѕС‡РєСѓ Р·С–С‚РєРЅРµРЅРЅСЏ Р·С– СЃС‚С–РЅРѕСЋ Р°Р±Рѕ РґРІРµСЂРёРјР°
 
-                float correctedDistance = hit.Distance * MathF.Cos(rayAngle - player.Angle); // Прибираємо ефект "риб’ячого ока"
-                correctedDistance = MathF.Max(correctedDistance, 1f); // Захист від ділення на нуль
+                float correctedDistance = hit.Distance * MathF.Cos(rayAngle - player.Angle); // РџСЂРёР±РёСЂР°С”РјРѕ РµС„РµРєС‚ "СЂРёР±вЂ™СЏС‡РѕРіРѕ РѕРєР°"
+                correctedDistance = MathF.Max(correctedDistance, 1f); // Р—Р°С…РёСЃС‚ РІС–Рґ РґС–Р»РµРЅРЅСЏ РЅР° РЅСѓР»СЊ
 
-                float wallHeight = map.TileSize * projectionDistance / correctedDistance; // Висота стіни на екрані
-                float wallTop = (viewport.Height - wallHeight) / 2f; // Верхня точка стіни всередині буфера
-                float wallBottom = wallTop + wallHeight; // Нижня точка стіни всередині буфера
+                float wallHeight = map.TileSize * projectionDistance / correctedDistance; // Р’РёСЃРѕС‚Р° СЃС‚С–РЅРё РЅР° РµРєСЂР°РЅС–
+                float wallTop = (frameHeight - wallHeight) / 2f; // Р’РµСЂС…РЅСЏ С‚РѕС‡РєР° СЃС‚С–РЅРё РІСЃРµСЂРµРґРёРЅС– РєР°РґСЂСѓ
+                float wallBottom = wallTop + wallHeight; // РќРёР¶РЅСЏ С‚РѕС‡РєР° СЃС‚С–РЅРё РІСЃРµСЂРµРґРёРЅС– РєР°РґСЂСѓ
 
-                int textureX = hit.TextureX; // Горизонтальна координата текстури для цієї колонки
-                int shade = CalculateWallShade(correctedDistance); // Яскравість залежно від відстані
+                int textureX = hit.TextureX; // Р“РѕСЂРёР·РѕРЅС‚Р°Р»СЊРЅР° РєРѕРѕСЂРґРёРЅР°С‚Р° С‚РµРєСЃС‚СѓСЂРё РґР»СЏ С†С–С”С— РєРѕР»РѕРЅРєРё
+                int shade = CalculateWallShade(correctedDistance); // РЇСЃРєСЂР°РІС–СЃС‚СЊ Р·Р°Р»РµР¶РЅРѕ РІС–Рґ РІС–РґСЃС‚Р°РЅС–
 
-                int drawStart = Math.Max(0, (int)wallTop); // Верхня межа малювання в межах буфера
-                int drawEnd = Math.Min(sceneBuffer.Height, (int)wallBottom); // Нижня межа малювання в межах буфера
+                int drawStart = Math.Max(0, (int)wallTop); // Р’РµСЂС…РЅСЏ РјРµР¶Р° РјР°Р»СЋРІР°РЅРЅСЏ РІ РјРµР¶Р°С… РєР°РґСЂСѓ
+                int drawEnd = Math.Min(frameHeight, (int)wallBottom); // РќРёР¶РЅСЏ РјРµР¶Р° РјР°Р»СЋРІР°РЅРЅСЏ РІ РјРµР¶Р°С… РєР°РґСЂСѓ
 
                 for (int screenY = drawStart; screenY < drawEnd; screenY++)
                 {
-                    float texturePercentY = (screenY - wallTop) / wallHeight; // Позиція пікселя по висоті стіни від 0 до 1
-                    int textureY = Math.Clamp((int)(texturePercentY * WallTexture.Size), 0, WallTexture.Size - 1); // Вертикальна координата текстури
+                    float texturePercentY = (screenY - wallTop) / wallHeight; // РџРѕР·РёС†С–СЏ РїС–РєСЃРµР»СЏ РїРѕ РІРёСЃРѕС‚С– СЃС‚С–РЅРё РІС–Рґ 0 РґРѕ 1
+                    int textureY = Math.Clamp((int)(texturePercentY * WallTexture.Size), 0, WallTexture.Size - 1); // Р’РµСЂС‚РёРєР°Р»СЊРЅР° РєРѕРѕСЂРґРёРЅР°С‚Р° С‚РµРєСЃС‚СѓСЂРё
 
                     Color textureColor = hit.IsDoor
-                        ? _doorTexture.GetPixel(textureX, textureY) // Для дверей беремо бірюзову текстуру із золотою ручкою
-                        : _wallTexture.GetPixel(textureX, textureY); // Для стіни беремо справжній піксель текстури
+                        ? _doorTexture.GetPixel(textureX, textureY) // Р”Р»СЏ РґРІРµСЂРµР№ Р±РµСЂРµРјРѕ Р±С–СЂСЋР·РѕРІСѓ С‚РµРєСЃС‚СѓСЂСѓ С–Р· Р·РѕР»РѕС‚РѕСЋ РµРјР±Р»РµРјРѕСЋ
+                        : _wallTexture.GetPixel(textureX, textureY); // Р”Р»СЏ СЃС‚С–РЅРё Р±РµСЂРµРјРѕ СЃРїСЂР°РІР¶РЅС–Р№ РїС–РєСЃРµР»СЊ С‚РµРєСЃС‚СѓСЂРё
 
-                    Color wallColor = ApplyShade(textureColor, shade); // Затемнюємо текстуру на відстані
-                    sceneBuffer.SetPixel(column, screenY, wallColor); // Записуємо піксель стіни або дверей у буфер
+                    Color wallColor = ApplyShade(textureColor, shade); // Р—Р°С‚РµРјРЅСЋС”РјРѕ С‚РµРєСЃС‚СѓСЂСѓ РЅР° РІС–РґСЃС‚Р°РЅС–
+                    framePixels[screenY * frameWidth + column] = wallColor.ToArgb(); // Р—Р°РїРёСЃСѓС”РјРѕ РїС–РєСЃРµР»СЊ СЃС‚С–РЅРё Р°Р±Рѕ РґРІРµСЂРµР№ Сѓ РјР°СЃРёРІ РєР°РґСЂСѓ
                 }
             }
         }
 
         private RayHit CastRay(float startX, float startY, float angle, GameMap map)
         {
-            float rayX = startX; // Поточна X-позиція променя
-            float rayY = startY; // Поточна Y-позиція променя
+            float rayX = startX; // РџРѕС‚РѕС‡РЅР° X-РїРѕР·РёС†С–СЏ РїСЂРѕРјРµРЅСЏ
+            float rayY = startY; // РџРѕС‚РѕС‡РЅР° Y-РїРѕР·РёС†С–СЏ РїСЂРѕРјРµРЅСЏ
 
             for (float distance = 0; distance < MaxRayDistance; distance += RayStep)
             {
-                rayX = startX + MathF.Cos(angle) * distance; // Рух променя по X
-                rayY = startY + MathF.Sin(angle) * distance; // Рух променя по Y
+                rayX = startX + MathF.Cos(angle) * distance; // Р СѓС… РїСЂРѕРјРµРЅСЏ РїРѕ X
+                rayY = startY + MathF.Sin(angle) * distance; // Р СѓС… РїСЂРѕРјРµРЅСЏ РїРѕ Y
 
-                int tileX = (int)(rayX / map.TileSize); // Клітинка карти по X
-                int tileY = (int)(rayY / map.TileSize); // Клітинка карти по Y
+                int tileX = (int)(rayX / map.TileSize); // РљР»С–С‚РёРЅРєР° РєР°СЂС‚Рё РїРѕ X
+                int tileY = (int)(rayY / map.TileSize); // РљР»С–С‚РёРЅРєР° РєР°СЂС‚Рё РїРѕ Y
 
                 if (map.IsBlocking(rayX, rayY))
                 {
-                    bool isDoor = map.IsDoor(tileX, tileY) && !map.IsDoorOpen(tileX, tileY); // Визначаємо, чи це ще не відкрита повністю дверна панель
-                    int textureX = CalculateTextureX(rayX, rayY, map.TileSize); // Визначаємо X-координату текстури
-                    return new RayHit(new PointF(rayX, rayY), distance, isDoor, textureX); // Повертаємо hit з координатою текстури
+                    bool isDoor = map.IsDoor(tileX, tileY) && !map.IsDoorOpen(tileX, tileY); // Р’РёР·РЅР°С‡Р°С”РјРѕ, С‡Рё С†Рµ С‰Рµ РЅРµ РІС–РґРєСЂРёС‚Р° РїРѕРІРЅС–СЃС‚СЋ РґРІРµСЂРЅР° РїР°РЅРµР»СЊ
+                    int textureX = CalculateTextureX(rayX, rayY, map.TileSize); // Р’РёР·РЅР°С‡Р°С”РјРѕ X-РєРѕРѕСЂРґРёРЅР°С‚Сѓ С‚РµРєСЃС‚СѓСЂРё
+                    return new RayHit(new PointF(rayX, rayY), distance, isDoor, textureX); // РџРѕРІРµСЂС‚Р°С”РјРѕ hit Р· РєРѕРѕСЂРґРёРЅР°С‚РѕСЋ С‚РµРєСЃС‚СѓСЂРё
                 }
             }
 
-            return new RayHit(new PointF(rayX, rayY), MaxRayDistance, false, 0); // Якщо перешкоду не знайдено, повертаємо максимальну відстань
+            return new RayHit(new PointF(rayX, rayY), MaxRayDistance, false, 0); // РЇРєС‰Рѕ РїРµСЂРµС€РєРѕРґСѓ РЅРµ Р·РЅР°Р№РґРµРЅРѕ, РїРѕРІРµСЂС‚Р°С”РјРѕ РјР°РєСЃРёРјР°Р»СЊРЅСѓ РІС–РґСЃС‚Р°РЅСЊ
+        }
+
+        private static void FillHorizonLine(int[] framePixels, int frameWidth, int frameHeight)
+        {
+            int horizon = frameHeight / 2; // Р СЏРґРѕРє РјС–Р¶ СЃС‚РµР»РµСЋ С– РїС–РґР»РѕРіРѕСЋ
+            int rowStart = horizon * frameWidth; // РџРѕС‡Р°С‚РѕРє СЂСЏРґРєР° РіРѕСЂРёР·РѕРЅС‚Сѓ РІ РјР°СЃРёРІС–
+            int horizonColor = Color.FromArgb(55, 55, 55).ToArgb(); // РќРµР№С‚СЂР°Р»СЊРЅРёР№ С‚РµРјРЅРѕ-СЃС–СЂРёР№ РєРѕР»С–СЂ РіРѕСЂРёР·РѕРЅС‚Сѓ
+
+            for (int column = 0; column < frameWidth; column++)
+            {
+                framePixels[rowStart + column] = horizonColor; // Р—Р°РїРѕРІРЅСЋС”РјРѕ СЂСЏРґРѕРє, С‰РѕР± РЅРµ Р»РёС€Р°С‚Рё С‡РѕСЂРЅСѓ Р»С–РЅС–СЋ
+            }
+        }
+
+        private static void CopyFrameToBitmap(int[] framePixels, Bitmap bitmap)
+        {
+            Rectangle rectangle = new Rectangle(0, 0, bitmap.Width, bitmap.Height); // РћР±Р»Р°СЃС‚СЊ СѓСЃСЊРѕРіРѕ Bitmap
+            BitmapData bitmapData = bitmap.LockBits(rectangle, ImageLockMode.WriteOnly, PixelFormat.Format32bppArgb); // Р‘Р»РѕРєСѓС”РјРѕ РїР°Рј'СЏС‚СЊ Bitmap РґР»СЏ С€РІРёРґРєРѕРіРѕ Р·Р°РїРёСЃСѓ
+
+            try
+            {
+                int expectedStride = bitmap.Width * 4; // РљС–Р»СЊРєС–СЃС‚СЊ Р±Р°Р№С‚С–РІ РІ РѕРґРЅРѕРјСѓ СЂСЏРґРєСѓ Р±РµР· РґРѕРґР°С‚РєРѕРІРѕРіРѕ РІРёСЂС–РІРЅСЋРІР°РЅРЅСЏ
+
+                if (bitmapData.Stride == expectedStride)
+                {
+                    Marshal.Copy(framePixels, 0, bitmapData.Scan0, framePixels.Length); // РќР°Р№С€РІРёРґС€РёР№ РІР°СЂС–Р°РЅС‚: РєРѕРїС–СЋС”РјРѕ РІРµСЃСЊ РєР°РґСЂ РѕРґРЅРёРј Р±Р»РѕРєРѕРј
+                    return;
+                }
+
+                for (int row = 0; row < bitmap.Height; row++)
+                {
+                    IntPtr rowPointer = IntPtr.Add(bitmapData.Scan0, row * bitmapData.Stride); // РџРѕС‡Р°С‚РѕРє СЂСЏРґРєР° РІ РїР°Рј'СЏС‚С– Bitmap
+                    Marshal.Copy(framePixels, row * bitmap.Width, rowPointer, bitmap.Width); // РљРѕРїС–СЋС”РјРѕ СЂСЏРґРѕРє, СЏРєС‰Рѕ Bitmap РјР°С” РЅРµСЃС‚Р°РЅРґР°СЂС‚РЅРёР№ stride
+                }
+            }
+            finally
+            {
+                bitmap.UnlockBits(bitmapData); // Р—Р°РІР¶РґРё СЂРѕР·Р±Р»РѕРєРѕРІСѓС”РјРѕ Bitmap РїС–СЃР»СЏ Р·Р°РїРёСЃСѓ
+            }
         }
 
         private static int CalculateWallShade(float distance)
         {
-            int shade = 255 - (int)(distance * 0.35f); // Чим далі стіна, тим темніша
-            return Math.Clamp(shade, 45, 220); // Обмежуємо яскравість, щоб стіни не зникали
+            int shade = 255 - (int)(distance * 0.35f); // Р§РёРј РґР°Р»С– СЃС‚С–РЅР°, С‚РёРј С‚РµРјРЅС–С€Р°
+            return Math.Clamp(shade, 45, 220); // РћР±РјРµР¶СѓС”РјРѕ СЏСЃРєСЂР°РІС–СЃС‚СЊ, С‰РѕР± СЃС‚С–РЅРё РЅРµ Р·РЅРёРєР°Р»Рё
         }
 
         private static int CalculateFloorShade(float distance)
         {
-            int shade = 230 - (int)(distance * 0.25f); // Підлога темнішає з відстанню
-            return Math.Clamp(shade, 35, 190); // Обмежуємо яскравість, щоб підлога не стала повністю чорною
+            int shade = 230 - (int)(distance * 0.25f); // РџС–РґР»РѕРіР° С‚РµРјРЅС–С€Р°С” Р· РІС–РґСЃС‚Р°РЅРЅСЋ
+            return Math.Clamp(shade, 35, 190); // РћР±РјРµР¶СѓС”РјРѕ СЏСЃРєСЂР°РІС–СЃС‚СЊ, С‰РѕР± РїС–РґР»РѕРіР° РЅРµ СЃС‚Р°Р»Р° РїРѕРІРЅС–СЃС‚СЋ С‡РѕСЂРЅРѕСЋ
         }
 
         private static int CalculateCeilingShade(float distance)
         {
-            int shade = 255 - (int)(distance * 0.18f); // Стеля світліша за підлогу, але теж має глибину
-            return Math.Clamp(shade, 95, 235); // Тримаємо стелю читабельною і достатньо яскравою
+            int shade = 255 - (int)(distance * 0.18f); // РЎС‚РµР»СЏ С‚РµР¶ РјР°С” Р»РµРіРєРµ Р·Р°С‚РµРјРЅРµРЅРЅСЏ РЅР° РІС–РґСЃС‚Р°РЅС–
+            return Math.Clamp(shade, 95, 235); // РўСЂРёРјР°С”РјРѕ СЃС‚РµР»СЋ С‡РёС‚Р°Р±РµР»СЊРЅРѕСЋ
         }
 
         private static int CalculateTextureX(float rayX, float rayY, int tileSize)
         {
-            float localX = rayX % tileSize; // X всередині клітинки карти
-            float localY = rayY % tileSize; // Y всередині клітинки карти
+            float localX = rayX % tileSize; // X РІСЃРµСЂРµРґРёРЅС– РєР»С–С‚РёРЅРєРё РєР°СЂС‚Рё
+            float localY = rayY % tileSize; // Y РІСЃРµСЂРµРґРёРЅС– РєР»С–С‚РёРЅРєРё РєР°СЂС‚Рё
 
-            float distanceToVerticalEdge = MathF.Min(localX, tileSize - localX); // Відстань до вертикальної межі стіни
-            float distanceToHorizontalEdge = MathF.Min(localY, tileSize - localY); // Відстань до горизонтальної межі стіни
+            float distanceToVerticalEdge = MathF.Min(localX, tileSize - localX); // Р’С–РґСЃС‚Р°РЅСЊ РґРѕ РІРµСЂС‚РёРєР°Р»СЊРЅРѕС— РјРµР¶С– СЃС‚С–РЅРё
+            float distanceToHorizontalEdge = MathF.Min(localY, tileSize - localY); // Р’С–РґСЃС‚Р°РЅСЊ РґРѕ РіРѕСЂРёР·РѕРЅС‚Р°Р»СЊРЅРѕС— РјРµР¶С– СЃС‚С–РЅРё
 
             float texturePosition = distanceToVerticalEdge < distanceToHorizontalEdge
                 ? localY
-                : localX; // Для вертикальної стіни беремо Y, для горизонтальної - X
+                : localX; // Р”Р»СЏ РІРµСЂС‚РёРєР°Р»СЊРЅРѕС— СЃС‚С–РЅРё Р±РµСЂРµРјРѕ Y, РґР»СЏ РіРѕСЂРёР·РѕРЅС‚Р°Р»СЊРЅРѕС— - X
 
-            return Math.Clamp((int)texturePosition, 0, WallTexture.Size - 1); // Повертаємо координату текстури 0..63
+            return Math.Clamp((int)texturePosition, 0, WallTexture.Size - 1); // РџРѕРІРµСЂС‚Р°С”РјРѕ РєРѕРѕСЂРґРёРЅР°С‚Сѓ С‚РµРєСЃС‚СѓСЂРё 0..63
         }
 
         private static int PositiveModulo(int value, int modulo)
         {
-            int result = value % modulo; // Звичайний залишок від ділення
-            return result < 0 ? result + modulo : result; // Робимо результат додатним навіть для від'ємних координат
+            int result = value % modulo; // Р—РІРёС‡Р°Р№РЅРёР№ Р·Р°Р»РёС€РѕРє РІС–Рґ РґС–Р»РµРЅРЅСЏ
+            return result < 0 ? result + modulo : result; // Р РѕР±РёРјРѕ СЂРµР·СѓР»СЊС‚Р°С‚ РґРѕРґР°С‚РЅРёРј РЅР°РІС–С‚СЊ РґР»СЏ РІС–Рґ'С”РјРЅРёС… РєРѕРѕСЂРґРёРЅР°С‚
         }
 
         private static Color ApplyShade(Color color, int shade)
         {
-            float factor = shade / 255f; // Коефіцієнт затемнення
+            float factor = shade / 255f; // РљРѕРµС„С–С†С–С”РЅС‚ Р·Р°С‚РµРјРЅРµРЅРЅСЏ
 
-            int red = (int)(color.R * factor); // Затемнюємо червоний канал
-            int green = (int)(color.G * factor); // Затемнюємо зелений канал
-            int blue = (int)(color.B * factor); // Затемнюємо синій канал
+            int red = (int)(color.R * factor); // Р—Р°С‚РµРјРЅСЋС”РјРѕ С‡РµСЂРІРѕРЅРёР№ РєР°РЅР°Р»
+            int green = (int)(color.G * factor); // Р—Р°С‚РµРјРЅСЋС”РјРѕ Р·РµР»РµРЅРёР№ РєР°РЅР°Р»
+            int blue = (int)(color.B * factor); // Р—Р°С‚РµРјРЅСЋС”РјРѕ СЃРёРЅС–Р№ РєР°РЅР°Р»
 
-            return Color.FromArgb(red, green, blue); // Повертаємо фінальний колір
+            return Color.FromArgb(color.A, red, green, blue); // РџРѕРІРµСЂС‚Р°С”РјРѕ С„С–РЅР°Р»СЊРЅРёР№ РєРѕР»С–СЂ Р·С– Р·Р±РµСЂРµР¶РµРЅРѕСЋ РїСЂРѕР·РѕСЂС–СЃС‚СЋ
         }
 
         private readonly struct RayHit
         {
             public RayHit(PointF point, float distance, bool isDoor, int textureX)
             {
-                Point = point; // Точка зіткнення променя зі стіною або дверима
-                Distance = distance; // Відстань від гравця до перешкоди
-                IsDoor = isDoor; // Чи є перешкода дверима
-                TextureX = textureX; // X-координата в текстурі
+                Point = point; // РўРѕС‡РєР° Р·С–С‚РєРЅРµРЅРЅСЏ РїСЂРѕРјРµРЅСЏ Р·С– СЃС‚С–РЅРѕСЋ Р°Р±Рѕ РґРІРµСЂРёРјР°
+                Distance = distance; // Р’С–РґСЃС‚Р°РЅСЊ РІС–Рґ РіСЂР°РІС†СЏ РґРѕ РїРµСЂРµС€РєРѕРґРё
+                IsDoor = isDoor; // Р§Рё С” РїРµСЂРµС€РєРѕРґР° РґРІРµСЂРёРјР°
+                TextureX = textureX; // X-РєРѕРѕСЂРґРёРЅР°С‚Р° РІ С‚РµРєСЃС‚СѓСЂС–
             }
 
-            public PointF Point { get; } // Координата зіткнення
-            public float Distance { get; } // Довжина променя до перешкоди
-            public bool IsDoor { get; } // Ознака, що промінь влучив у двері
-            public int TextureX { get; } // X-координата в текстурі
+            public PointF Point { get; } // РљРѕРѕСЂРґРёРЅР°С‚Р° Р·С–С‚РєРЅРµРЅРЅСЏ
+            public float Distance { get; } // Р”РѕРІР¶РёРЅР° РїСЂРѕРјРµРЅСЏ РґРѕ РїРµСЂРµС€РєРѕРґРё
+            public bool IsDoor { get; } // РћР·РЅР°РєР°, С‰Рѕ РїСЂРѕРјС–РЅСЊ РІР»СѓС‡РёРІ Сѓ РґРІРµСЂС–
+            public int TextureX { get; } // X-РєРѕРѕСЂРґРёРЅР°С‚Р° РІ С‚РµРєСЃС‚СѓСЂС–
         }
     }
 }
+
+

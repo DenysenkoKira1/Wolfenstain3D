@@ -38,7 +38,7 @@ namespace Wolfenstain3D
 
         private void Update()
         {
-            _map.UpdateDoors(); // Плавно оновлюємо стан і прогрес дверей
+            _map.UpdateDoors(_player.X, _player.Y); // Плавно оновлюємо двері й не даємо їм закриватися на гравцеві
             _player.Update(_input, _map); // Оновлюємо гравця з урахуванням карти та collision
         }
 

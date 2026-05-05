@@ -7,12 +7,14 @@ namespace Wolfenstain3D
     {
         public const int Size = 64; // Розмір текстури: 64 на 64 пікселі
 
-        private readonly Bitmap _bitmap; // Готова картинка текстури стіни
+        private readonly Color[] _pixels = new Color[Size * Size]; // Пікселі текстури у швидкому масиві
 
         public WallTexture()
         {
-            _bitmap = new Bitmap(Size, Size); // Створюємо квадратну текстуру
-            GenerateBrickTexture(); // Одразу генеруємо світло-сірий кам'яний малюнок
+            using Bitmap bitmap = new Bitmap(Size, Size); // Тимчасова картинка тільки для генерації малюнка
+
+            GenerateBrickTexture(bitmap); // Генеруємо світло-сірий кам'яний малюнок
+            CopyPixelsToArray(bitmap); // Один раз копіюємо Bitmap у масив, щоб у грі не викликати GetPixel
         }
 
         public Color GetPixel(int x, int y)
@@ -20,12 +22,12 @@ namespace Wolfenstain3D
             x = Math.Clamp(x, 0, Size - 1); // Захищаємо X від виходу за межі текстури
             y = Math.Clamp(y, 0, Size - 1); // Захищаємо Y від виходу за межі текстури
 
-            return _bitmap.GetPixel(x, y); // Повертаємо колір конкретного пікселя текстури
+            return _pixels[y * Size + x]; // Швидко повертаємо колір із масиву
         }
 
-        private void GenerateBrickTexture()
+        private static void GenerateBrickTexture(Bitmap bitmap)
         {
-            using Graphics graphics = Graphics.FromImage(_bitmap); // Дозволяє малювати прямо на Bitmap
+            using Graphics graphics = Graphics.FromImage(bitmap); // Дозволяє малювати прямо на тимчасовий Bitmap
 
             graphics.Clear(Color.FromArgb(175, 175, 175)); // Основний світло-сірий колір каменю
 
@@ -55,6 +57,17 @@ namespace Wolfenstain3D
                 for (int x = 5; x < Size; x += 17)
                 {
                     graphics.DrawLine(noisePen, x, y, x + 5, y); // Маленька тріщина/нерівність на камені
+                }
+            }
+        }
+
+        private void CopyPixelsToArray(Bitmap bitmap)
+        {
+            for (int y = 0; y < Size; y++)
+            {
+                for (int x = 0; x < Size; x++)
+                {
+                    _pixels[y * Size + x] = bitmap.GetPixel(x, y); // Копіюємо піксель один раз під час створення текстури
                 }
             }
         }

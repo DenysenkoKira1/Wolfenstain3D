@@ -1,13 +1,15 @@
-using System; // Потрібно для MathF
-using System.Collections.Generic; // Потрібно для List<Door>
-using System.Drawing; // Потрібно для Graphics, Brush, Pen, Color
+п»їusing System; // РџРѕС‚СЂС–Р±РЅРѕ РґР»СЏ MathF
+using System.Collections.Generic; // РџРѕС‚СЂС–Р±РЅРѕ РґР»СЏ List<Door>
+using System.Drawing; // РџРѕС‚СЂС–Р±РЅРѕ РґР»СЏ Graphics, Brush, Pen, Color
 
 namespace Wolfenstain3D
 {
     internal class GameMap
     {
-        private readonly int[,] _tiles; // Карта рівня у вигляді числових тайлів
-        private readonly List<Door> _doors = new List<Door>(); // Усі двері рівня як окремі об'єкти
+        private const float PlayerDoorSafetyRadius = 12f; // Р Р°РґС–СѓСЃ Р±РµР·РїРµРєРё РіСЂР°РІС†СЏ, С‰РѕР± РґРІРµСЂС– РЅРµ Р·Р°РєСЂРёРІР°Р»РёСЃСЏ РЅР° РЅСЊРѕРјСѓ
+
+        private readonly int[,] _tiles; // РљР°СЂС‚Р° СЂС–РІРЅСЏ Сѓ РІРёРіР»СЏРґС– С‡РёСЃР»РѕРІРёС… С‚Р°Р№Р»С–РІ
+        private readonly List<Door> _doors = new List<Door>(); // РЈСЃС– РґРІРµСЂС– СЂС–РІРЅСЏ СЏРє РѕРєСЂРµРјС– РѕР±'С”РєС‚Рё
 
         public GameMap()
         {
@@ -38,168 +40,169 @@ namespace Wolfenstain3D
                 "#########################"
             };
 
-            _tiles = new int[layout.Length, layout[0].Length]; // Створюємо масив під усю карту
+            _tiles = new int[layout.Length, layout[0].Length]; // РЎС‚РІРѕСЂСЋС”РјРѕ РјР°СЃРёРІ РїС–Рґ СѓСЃСЋ РєР°СЂС‚Сѓ
 
-            bool playerStartFound = false; // Прапорець, що старт гравця знайдено на карті
+            bool playerStartFound = false; // РџСЂР°РїРѕСЂРµС†СЊ, С‰Рѕ СЃС‚Р°СЂС‚ РіСЂР°РІС†СЏ Р·РЅР°Р№РґРµРЅРѕ РЅР° РєР°СЂС‚С–
 
             for (int y = 0; y < layout.Length; y++)
             {
                 for (int x = 0; x < layout[y].Length; x++)
                 {
-                    char tile = layout[y][x]; // Поточний символ карти
+                    char tile = layout[y][x]; // РџРѕС‚РѕС‡РЅРёР№ СЃРёРјРІРѕР» РєР°СЂС‚Рё
 
                     switch (tile)
                     {
                         case '#':
-                            _tiles[y, x] = 1; // Стіна
+                            _tiles[y, x] = 1; // РЎС‚С–РЅР°
                             break;
                         case 'D':
-                            _tiles[y, x] = 2; // Двері, для яких пізніше створимо окремий об'єкт
+                            _tiles[y, x] = 2; // Р”РІРµСЂС–, РґР»СЏ СЏРєРёС… РїС–Р·РЅС–С€Рµ СЃС‚РІРѕСЂРёРјРѕ РѕРєСЂРµРјРёР№ РѕР±'С”РєС‚
                             break;
                         case 'P':
-                            _tiles[y, x] = 0; // Стартова клітинка гравця є підлогою
-                            PlayerStartX = (x + 0.5f) * TileSize; // Ставимо гравця в центр клітинки
-                            PlayerStartY = (y + 0.5f) * TileSize; // Ставимо гравця в центр клітинки
+                            _tiles[y, x] = 0; // РЎС‚Р°СЂС‚РѕРІР° РєР»С–С‚РёРЅРєР° РіСЂР°РІС†СЏ С” РїС–РґР»РѕРіРѕСЋ
+                            PlayerStartX = (x + 0.5f) * TileSize; // РЎС‚Р°РІРёРјРѕ РіСЂР°РІС†СЏ РІ С†РµРЅС‚СЂ РєР»С–С‚РёРЅРєРё
+                            PlayerStartY = (y + 0.5f) * TileSize; // РЎС‚Р°РІРёРјРѕ РіСЂР°РІС†СЏ РІ С†РµРЅС‚СЂ РєР»С–С‚РёРЅРєРё
                             playerStartFound = true;
                             break;
                         default:
-                            _tiles[y, x] = 0; // Усе інше вважаємо підлогою
+                            _tiles[y, x] = 0; // РЈСЃРµ С–РЅС€Рµ РІРІР°Р¶Р°С”РјРѕ РїС–РґР»РѕРіРѕСЋ
                             break;
                     }
                 }
             }
 
-            CreateDoors(); // Після читання всієї карти створюємо двері з правильним напрямком відкривання
+            CreateDoors(); // РџС–СЃР»СЏ С‡РёС‚Р°РЅРЅСЏ РІСЃС–С”С— РєР°СЂС‚Рё СЃС‚РІРѕСЂСЋС”РјРѕ РґРІРµСЂС– Р· РїСЂР°РІРёР»СЊРЅРёРј РЅР°РїСЂСЏРјРєРѕРј РІС–РґРєСЂРёРІР°РЅРЅСЏ
 
             if (!playerStartFound)
             {
-                PlayerStartX = 1.5f * TileSize; // Резервна стартова позиція по X
-                PlayerStartY = 1.5f * TileSize; // Резервна стартова позиція по Y
+                PlayerStartX = 1.5f * TileSize; // Р РµР·РµСЂРІРЅР° СЃС‚Р°СЂС‚РѕРІР° РїРѕР·РёС†С–СЏ РїРѕ X
+                PlayerStartY = 1.5f * TileSize; // Р РµР·РµСЂРІРЅР° СЃС‚Р°СЂС‚РѕРІР° РїРѕР·РёС†С–СЏ РїРѕ Y
             }
 
-            PlayerStartAngle = 2.75f; // Стартовий погляд приблизно вліво-вниз, як на скріні
+            PlayerStartAngle = 2.75f; // РЎС‚Р°СЂС‚РѕРІРёР№ РїРѕРіР»СЏРґ РїСЂРёР±Р»РёР·РЅРѕ РІР»С–РІРѕ-РІРЅРёР·, СЏРє РЅР° СЃРєСЂС–РЅС–
         }
 
-        public int TileSize { get; } = 64; // Розмір однієї клітинки у світі гри
-        public int Width => _tiles.GetLength(1); // Ширина карти в клітинках
-        public int Height => _tiles.GetLength(0); // Висота карти в клітинках
-        public float PlayerStartX { get; } // Стартова позиція гравця по X
-        public float PlayerStartY { get; } // Стартова позиція гравця по Y
-        public float PlayerStartAngle { get; } // Стартовий кут погляду гравця
+        public int TileSize { get; } = 64; // Р РѕР·РјС–СЂ РѕРґРЅС–С”С— РєР»С–С‚РёРЅРєРё Сѓ СЃРІС–С‚С– РіСЂРё
+        public int Width => _tiles.GetLength(1); // РЁРёСЂРёРЅР° РєР°СЂС‚Рё РІ РєР»С–С‚РёРЅРєР°С…
+        public int Height => _tiles.GetLength(0); // Р’РёСЃРѕС‚Р° РєР°СЂС‚Рё РІ РєР»С–С‚РёРЅРєР°С…
+        public float PlayerStartX { get; } // РЎС‚Р°СЂС‚РѕРІР° РїРѕР·РёС†С–СЏ РіСЂР°РІС†СЏ РїРѕ X
+        public float PlayerStartY { get; } // РЎС‚Р°СЂС‚РѕРІР° РїРѕР·РёС†С–СЏ РіСЂР°РІС†СЏ РїРѕ Y
+        public float PlayerStartAngle { get; } // РЎС‚Р°СЂС‚РѕРІРёР№ РєСѓС‚ РїРѕРіР»СЏРґСѓ РіСЂР°РІС†СЏ
 
         public bool IsDoor(int tileX, int tileY)
         {
             if (tileX < 0 || tileY < 0 || tileX >= Width || tileY >= Height)
             {
-                return false; // За межами карти дверей немає
+                return false; // Р—Р° РјРµР¶Р°РјРё РєР°СЂС‚Рё РґРІРµСЂРµР№ РЅРµРјР°С”
             }
 
-            return _tiles[tileY, tileX] == 2; // 2 означає двері
+            return _tiles[tileY, tileX] == 2; // 2 РѕР·РЅР°С‡Р°С” РґРІРµСЂС–
         }
 
         public bool IsDoorOpen(int tileX, int tileY)
         {
-            Door? door = FindDoor(tileX, tileY); // Шукаємо об'єкт дверей у списку
+            Door? door = FindDoor(tileX, tileY); // РЁСѓРєР°С”РјРѕ РѕР±'С”РєС‚ РґРІРµСЂРµР№ Сѓ СЃРїРёСЃРєСѓ
 
-            return door != null && door.IsOpen; // Двері відкриті тільки якщо об'єкт існує і має стан Open
+            return door != null && door.IsOpen; // Р”РІРµСЂС– РІС–РґРєСЂРёС‚С– С‚С–Р»СЊРєРё СЏРєС‰Рѕ РѕР±'С”РєС‚ С–СЃРЅСѓС” С– РјР°С” СЃС‚Р°РЅ Open
         }
 
-        public void UpdateDoors()
+        public void UpdateDoors(float playerX, float playerY)
         {
             foreach (Door door in _doors)
             {
-                door.Update(); // Оновлюємо тільки реальні двері, а не всі клітинки карти
+                bool playerBlocksDoor = IsPlayerTouchingDoorCell(door, playerX, playerY); // РџРµСЂРµРІС–СЂСЏС”РјРѕ, С‡Рё РіСЂР°РІРµС†СЊ СЃС‚РѕС—С‚СЊ Сѓ РєР»С–С‚РёРЅС†С– С†РёС… РґРІРµСЂРµР№
+                door.Update(playerBlocksDoor); // РћРЅРѕРІР»СЋС”РјРѕ РґРІРµСЂС– Р· СѓСЂР°С…СѓРІР°РЅРЅСЏРј Р±РµР·РїРµРєРё РіСЂР°РІС†СЏ
             }
         }
 
         public void TryOpenDoor(float playerX, float playerY, float playerAngle)
         {
-            float interactDistance = TileSize * 0.75f; // Наскільки далеко попереду гравець може відкрити двері
+            float interactDistance = TileSize * 0.75f; // РќР°СЃРєС–Р»СЊРєРё РґР°Р»РµРєРѕ РїРѕРїРµСЂРµРґСѓ РіСЂР°РІРµС†СЊ РјРѕР¶Рµ РІС–РґРєСЂРёС‚Рё РґРІРµСЂС–
 
-            float checkX = playerX + MathF.Cos(playerAngle) * interactDistance; // Точка перевірки попереду гравця по X
-            float checkY = playerY + MathF.Sin(playerAngle) * interactDistance; // Точка перевірки попереду гравця по Y
+            float checkX = playerX + MathF.Cos(playerAngle) * interactDistance; // РўРѕС‡РєР° РїРµСЂРµРІС–СЂРєРё РїРѕРїРµСЂРµРґСѓ РіСЂР°РІС†СЏ РїРѕ X
+            float checkY = playerY + MathF.Sin(playerAngle) * interactDistance; // РўРѕС‡РєР° РїРµСЂРµРІС–СЂРєРё РїРѕРїРµСЂРµРґСѓ РіСЂР°РІС†СЏ РїРѕ Y
 
-            int tileX = (int)(checkX / TileSize); // Клітинка карти по X
-            int tileY = (int)(checkY / TileSize); // Клітинка карти по Y
-            Door? door = FindDoor(tileX, tileY); // Знаходимо двері, на які дивиться гравець
+            int tileX = (int)(checkX / TileSize); // РљР»С–С‚РёРЅРєР° РєР°СЂС‚Рё РїРѕ X
+            int tileY = (int)(checkY / TileSize); // РљР»С–С‚РёРЅРєР° РєР°СЂС‚Рё РїРѕ Y
+            Door? door = FindDoor(tileX, tileY); // Р—РЅР°С…РѕРґРёРјРѕ РґРІРµСЂС–, РЅР° СЏРєС– РґРёРІРёС‚СЊСЃСЏ РіСЂР°РІРµС†СЊ
 
-            door?.StartOpening(); // Якщо двері знайдені, запускаємо їх відкривання
+            door?.StartOpening(); // РЇРєС‰Рѕ РґРІРµСЂС– Р·РЅР°Р№РґРµРЅС–, Р·Р°РїСѓСЃРєР°С”РјРѕ С—С… РІС–РґРєСЂРёРІР°РЅРЅСЏ
         }
 
         public bool IsWall(int tileX, int tileY)
         {
             if (tileX < 0 || tileY < 0 || tileX >= Width || tileY >= Height)
             {
-                return true; // За межами карти вважаємо стіною
+                return true; // Р—Р° РјРµР¶Р°РјРё РєР°СЂС‚Рё РІРІР°Р¶Р°С”РјРѕ СЃС‚С–РЅРѕСЋ
             }
 
             if (_tiles[tileY, tileX] == 1)
             {
-                return true; // Стіна завжди блокує рух
+                return true; // РЎС‚С–РЅР° Р·Р°РІР¶РґРё Р±Р»РѕРєСѓС” СЂСѓС…
             }
 
             if (_tiles[tileY, tileX] == 2)
             {
-                Door? door = FindDoor(tileX, tileY); // Знаходимо об'єкт дверей для цієї клітинки
+                Door? door = FindDoor(tileX, tileY); // Р—РЅР°С…РѕРґРёРјРѕ РѕР±'С”РєС‚ РґРІРµСЂРµР№ РґР»СЏ С†С–С”С— РєР»С–С‚РёРЅРєРё
 
-                return door == null || !door.IsOpen; // Двері блокують, поки повністю не відкрилися
+                return door == null || !door.IsOpen; // Р”РІРµСЂС– Р±Р»РѕРєСѓСЋС‚СЊ, РїРѕРєРё РїРѕРІРЅС–СЃС‚СЋ РЅРµ РІС–РґРєСЂРёР»РёСЃСЏ
             }
 
-            return false; // Підлога не блокує рух
+            return false; // РџС–РґР»РѕРіР° РЅРµ Р±Р»РѕРєСѓС” СЂСѓС…
         }
 
         public bool IsBlocking(float worldX, float worldY)
         {
-            int tileX = (int)(worldX / TileSize); // Клітинка карти по X для точки світу
-            int tileY = (int)(worldY / TileSize); // Клітинка карти по Y для точки світу
+            int tileX = (int)(worldX / TileSize); // РљР»С–С‚РёРЅРєР° РєР°СЂС‚Рё РїРѕ X РґР»СЏ С‚РѕС‡РєРё СЃРІС–С‚Сѓ
+            int tileY = (int)(worldY / TileSize); // РљР»С–С‚РёРЅРєР° РєР°СЂС‚Рё РїРѕ Y РґР»СЏ С‚РѕС‡РєРё СЃРІС–С‚Сѓ
 
             if (tileX < 0 || tileY < 0 || tileX >= Width || tileY >= Height)
             {
-                return true; // За межами карти точка вважається заблокованою
+                return true; // Р—Р° РјРµР¶Р°РјРё РєР°СЂС‚Рё С‚РѕС‡РєР° РІРІР°Р¶Р°С”С‚СЊСЃСЏ Р·Р°Р±Р»РѕРєРѕРІР°РЅРѕСЋ
             }
 
             if (_tiles[tileY, tileX] == 1)
             {
-                return true; // Стіна завжди заблокована
+                return true; // РЎС‚С–РЅР° Р·Р°РІР¶РґРё Р·Р°Р±Р»РѕРєРѕРІР°РЅР°
             }
 
             if (_tiles[tileY, tileX] == 2)
             {
-                Door? door = FindDoor(tileX, tileY); // Знаходимо двері, які займають цю клітинку
+                Door? door = FindDoor(tileX, tileY); // Р—РЅР°С…РѕРґРёРјРѕ РґРІРµСЂС–, СЏРєС– Р·Р°Р№РјР°СЋС‚СЊ С†СЋ РєР»С–С‚РёРЅРєСѓ
 
-                return door == null || door.IsBlocking(worldX, worldY, TileSize); // Для дверей враховуємо напрямок заїзду в стіну
+                return door == null || door.IsBlocking(worldX, worldY, TileSize); // Р”Р»СЏ РґРІРµСЂРµР№ РІСЂР°С…РѕРІСѓС”РјРѕ РЅР°РїСЂСЏРјРѕРє Р·Р°С—Р·РґСѓ РІ СЃС‚С–РЅСѓ
             }
 
-            return false; // Підлога не блокує точку
+            return false; // РџС–РґР»РѕРіР° РЅРµ Р±Р»РѕРєСѓС” С‚РѕС‡РєСѓ
         }
 
         public void RenderMiniMap(Graphics graphics, int mapX, int mapY, int cellSize)
         {
-            using Brush wallBrush = new SolidBrush(Color.FromArgb(90, 90, 90)); // Колір стін
-            using Brush floorBrush = new SolidBrush(Color.FromArgb(25, 25, 25)); // Колір підлоги
-            using Brush doorBrush = new SolidBrush(Color.DarkGoldenrod); // Колір дверей
-            using Pen gridPen = new Pen(Color.FromArgb(60, Color.White)); // Лінії сітки
+            using Brush wallBrush = new SolidBrush(Color.FromArgb(90, 90, 90)); // РљРѕР»С–СЂ СЃС‚С–РЅ
+            using Brush floorBrush = new SolidBrush(Color.FromArgb(25, 25, 25)); // РљРѕР»С–СЂ РїС–РґР»РѕРіРё
+            using Brush doorBrush = new SolidBrush(Color.DarkGoldenrod); // РљРѕР»С–СЂ РґРІРµСЂРµР№
+            using Pen gridPen = new Pen(Color.FromArgb(60, Color.White)); // Р›С–РЅС–С— СЃС–С‚РєРё
 
             for (int y = 0; y < Height; y++)
             {
                 for (int x = 0; x < Width; x++)
                 {
-                    int screenX = mapX + x * cellSize; // X клітинки на екрані
-                    int screenY = mapY + y * cellSize; // Y клітинки на екрані
+                    int screenX = mapX + x * cellSize; // X РєР»С–С‚РёРЅРєРё РЅР° РµРєСЂР°РЅС–
+                    int screenY = mapY + y * cellSize; // Y РєР»С–С‚РёРЅРєРё РЅР° РµРєСЂР°РЅС–
 
                     if (IsDoor(x, y))
                     {
-                        Door? door = FindDoor(x, y); // Беремо конкретний об'єкт дверей для малювання
+                        Door? door = FindDoor(x, y); // Р‘РµСЂРµРјРѕ РєРѕРЅРєСЂРµС‚РЅРёР№ РѕР±'С”РєС‚ РґРІРµСЂРµР№ РґР»СЏ РјР°Р»СЋРІР°РЅРЅСЏ
 
-                        graphics.FillRectangle(floorBrush, screenX, screenY, cellSize, cellSize); // Спочатку малюємо підлогу під дверима
-                        door?.RenderMiniMap(graphics, screenX, screenY, cellSize, doorBrush); // Двері самі малюють свій поточний прогрес і напрямок
-                        graphics.DrawRectangle(gridPen, screenX, screenY, cellSize, cellSize); // Малюємо межу клітинки
+                        graphics.FillRectangle(floorBrush, screenX, screenY, cellSize, cellSize); // РЎРїРѕС‡Р°С‚РєСѓ РјР°Р»СЋС”РјРѕ РїС–РґР»РѕРіСѓ РїС–Рґ РґРІРµСЂРёРјР°
+                        door?.RenderMiniMap(graphics, screenX, screenY, cellSize, doorBrush); // Р”РІРµСЂС– СЃР°РјС– РјР°Р»СЋСЋС‚СЊ СЃРІС–Р№ РїРѕС‚РѕС‡РЅРёР№ РїСЂРѕРіСЂРµСЃ С– РЅР°РїСЂСЏРјРѕРє
+                        graphics.DrawRectangle(gridPen, screenX, screenY, cellSize, cellSize); // РњР°Р»СЋС”РјРѕ РјРµР¶Сѓ РєР»С–С‚РёРЅРєРё
                         continue;
                     }
 
-                    Brush tileBrush = IsWall(x, y) ? wallBrush : floorBrush; // Вибираємо колір для стіни або підлоги
-                    graphics.FillRectangle(tileBrush, screenX, screenY, cellSize, cellSize); // Малюємо клітинку
-                    graphics.DrawRectangle(gridPen, screenX, screenY, cellSize, cellSize); // Малюємо межу клітинки
+                    Brush tileBrush = IsWall(x, y) ? wallBrush : floorBrush; // Р’РёР±РёСЂР°С”РјРѕ РєРѕР»С–СЂ РґР»СЏ СЃС‚С–РЅРё Р°Р±Рѕ РїС–РґР»РѕРіРё
+                    graphics.FillRectangle(tileBrush, screenX, screenY, cellSize, cellSize); // РњР°Р»СЋС”РјРѕ РєР»С–С‚РёРЅРєСѓ
+                    graphics.DrawRectangle(gridPen, screenX, screenY, cellSize, cellSize); // РњР°Р»СЋС”РјРѕ РјРµР¶Сѓ РєР»С–С‚РёРЅРєРё
                 }
             }
         }
@@ -212,8 +215,8 @@ namespace Wolfenstain3D
                 {
                     if (_tiles[y, x] == 2)
                     {
-                        DoorSlideDirection direction = ChooseDoorSlideDirection(x, y); // Визначаємо, у яку сусідню стіну мають заїжджати двері
-                        _doors.Add(new Door(x, y, direction)); // Створюємо двері з власними координатами, станом і напрямком
+                        DoorSlideDirection direction = ChooseDoorSlideDirection(x, y); // Р’РёР·РЅР°С‡Р°С”РјРѕ, Сѓ СЏРєСѓ СЃСѓСЃС–РґРЅСЋ СЃС‚С–РЅСѓ РјР°СЋС‚СЊ Р·Р°С—Р¶РґР¶Р°С‚Рё РґРІРµСЂС–
+                        _doors.Add(new Door(x, y, direction)); // РЎС‚РІРѕСЂСЋС”РјРѕ РґРІРµСЂС– Р· РІР»Р°СЃРЅРёРјРё РєРѕРѕСЂРґРёРЅР°С‚Р°РјРё, СЃС‚Р°РЅРѕРј С– РЅР°РїСЂСЏРјРєРѕРј
                     }
                 }
             }
@@ -223,35 +226,52 @@ namespace Wolfenstain3D
         {
             if (IsStaticWall(tileX + 1, tileY))
             {
-                return DoorSlideDirection.Right; // Якщо справа є стіна, двері заїжджають праворуч
+                return DoorSlideDirection.Right; // РЇРєС‰Рѕ СЃРїСЂР°РІР° С” СЃС‚С–РЅР°, РґРІРµСЂС– Р·Р°С—Р¶РґР¶Р°СЋС‚СЊ РїСЂР°РІРѕСЂСѓС‡
             }
 
             if (IsStaticWall(tileX - 1, tileY))
             {
-                return DoorSlideDirection.Left; // Якщо зліва є стіна, двері заїжджають ліворуч
+                return DoorSlideDirection.Left; // РЇРєС‰Рѕ Р·Р»С–РІР° С” СЃС‚С–РЅР°, РґРІРµСЂС– Р·Р°С—Р¶РґР¶Р°СЋС‚СЊ Р»С–РІРѕСЂСѓС‡
             }
 
             if (IsStaticWall(tileX, tileY - 1))
             {
-                return DoorSlideDirection.Up; // Якщо зверху є стіна, двері заїжджають вгору
+                return DoorSlideDirection.Up; // РЇРєС‰Рѕ Р·РІРµСЂС…Сѓ С” СЃС‚С–РЅР°, РґРІРµСЂС– Р·Р°С—Р¶РґР¶Р°СЋС‚СЊ РІРіРѕСЂСѓ
             }
 
             if (IsStaticWall(tileX, tileY + 1))
             {
-                return DoorSlideDirection.Down; // Якщо знизу є стіна, двері заїжджають вниз
+                return DoorSlideDirection.Down; // РЇРєС‰Рѕ Р·РЅРёР·Сѓ С” СЃС‚С–РЅР°, РґРІРµСЂС– Р·Р°С—Р¶РґР¶Р°СЋС‚СЊ РІРЅРёР·
             }
 
-            return DoorSlideDirection.Right; // Резервний варіант, якщо біля дверей випадково немає стіни
+            return DoorSlideDirection.Right; // Р РµР·РµСЂРІРЅРёР№ РІР°СЂС–Р°РЅС‚, СЏРєС‰Рѕ Р±С–Р»СЏ РґРІРµСЂРµР№ РІРёРїР°РґРєРѕРІРѕ РЅРµРјР°С” СЃС‚С–РЅРё
         }
 
         private bool IsStaticWall(int tileX, int tileY)
         {
             if (tileX < 0 || tileY < 0 || tileX >= Width || tileY >= Height)
             {
-                return false; // За межами карти не шукаємо стіну для напрямку дверей
+                return false; // Р—Р° РјРµР¶Р°РјРё РєР°СЂС‚Рё РЅРµ С€СѓРєР°С”РјРѕ СЃС‚С–РЅСѓ РґР»СЏ РЅР°РїСЂСЏРјРєСѓ РґРІРµСЂРµР№
             }
 
-            return _tiles[tileY, tileX] == 1; // Для напрямку відкривання враховуємо тільки справжні стіни
+            return _tiles[tileY, tileX] == 1; // Р”Р»СЏ РЅР°РїСЂСЏРјРєСѓ РІС–РґРєСЂРёРІР°РЅРЅСЏ РІСЂР°С…РѕРІСѓС”РјРѕ С‚С–Р»СЊРєРё СЃРїСЂР°РІР¶РЅС– СЃС‚С–РЅРё
+        }
+
+        private bool IsPlayerTouchingDoorCell(Door door, float playerX, float playerY)
+        {
+            return IsWorldPointInsideDoorCell(door, playerX, playerY)
+                || IsWorldPointInsideDoorCell(door, playerX - PlayerDoorSafetyRadius, playerY)
+                || IsWorldPointInsideDoorCell(door, playerX + PlayerDoorSafetyRadius, playerY)
+                || IsWorldPointInsideDoorCell(door, playerX, playerY - PlayerDoorSafetyRadius)
+                || IsWorldPointInsideDoorCell(door, playerX, playerY + PlayerDoorSafetyRadius); // РџРµСЂРµРІС–СЂСЏС”РјРѕ С†РµРЅС‚СЂ С– РєСЂР°С— РіСЂР°РІС†СЏ, С‰РѕР± РґРІРµСЂС– РЅРµ Р·Р°РєСЂРёР»РёСЃСЏ РЅР° РЅСЊРѕРјСѓ
+        }
+
+        private bool IsWorldPointInsideDoorCell(Door door, float worldX, float worldY)
+        {
+            int tileX = (int)(worldX / TileSize); // РљР»С–С‚РёРЅРєР° С‚РѕС‡РєРё РїРѕ X
+            int tileY = (int)(worldY / TileSize); // РљР»С–С‚РёРЅРєР° С‚РѕС‡РєРё РїРѕ Y
+
+            return tileX == door.TileX && tileY == door.TileY; // РўРѕС‡РєР° Р·РЅР°С…РѕРґРёС‚СЊСЃСЏ СЃР°РјРµ РІ РєР»С–С‚РёРЅС†С– С†РёС… РґРІРµСЂРµР№
         }
 
         private Door? FindDoor(int tileX, int tileY)
@@ -260,11 +280,16 @@ namespace Wolfenstain3D
             {
                 if (door.TileX == tileX && door.TileY == tileY)
                 {
-                    return door; // Повертаємо саме ті двері, які стоять у потрібній клітинці
+                    return door; // РџРѕРІРµСЂС‚Р°С”РјРѕ СЃР°РјРµ С‚С– РґРІРµСЂС–, СЏРєС– СЃС‚РѕСЏС‚СЊ Сѓ РїРѕС‚СЂС–Р±РЅС–Р№ РєР»С–С‚РёРЅС†С–
                 }
             }
 
-            return null; // У цій клітинці об'єкта дверей немає
+            return null; // РЈ С†С–Р№ РєР»С–С‚РёРЅС†С– РѕР±'С”РєС‚Р° РґРІРµСЂРµР№ РЅРµРјР°С”
         }
     }
 }
+
+
+
+
+

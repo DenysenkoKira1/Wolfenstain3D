@@ -1,4 +1,4 @@
-using System; // Потрібно для MathF
+using System; // Потрібно для DateTime і MathF
 using System.Drawing; // Потрібно для Graphics і Brush
 
 namespace Wolfenstain3D
@@ -17,14 +17,18 @@ namespace Wolfenstain3D
         {
             Closed,
             Opening,
-            Open
+            Open,
+            Closing
         }
 
         private const float OpenSpeed = 0.04f; // Швидкість відкривання дверей за один кадр
+        private const float CloseSpeed = 0.04f; // Швидкість закривання дверей за один кадр
+        private const int AutoCloseDelayMilliseconds = 1000; // Через скільки мілісекунд відкриті двері пробують закритися
 
         private readonly DoorSlideDirection _slideDirection; // Напрямок, у який двері заїжджають у сусідню стіну
         private DoorState _state = DoorState.Closed; // Поточний стан конкретних дверей
         private float _openProgress; // Прогрес відкривання від 0 до 1
+        private DateTime _openedAt; // Час, коли двері повністю відкрилися
 
         public Door(int tileX, int tileY, DoorSlideDirection slideDirection)
         {
@@ -39,24 +43,29 @@ namespace Wolfenstain3D
 
         public void StartOpening()
         {
-            if (_state == DoorState.Closed)
+            if (_state == DoorState.Closed || _state == DoorState.Closing)
             {
-                _state = DoorState.Opening; // Запускаємо відкривання тільки для закритих дверей
+                _state = DoorState.Opening; // Запускаємо відкривання тільки для закритих дверей або дверей, які ще закривалися
             }
         }
 
-        public void Update()
+        public void Update(bool playerBlocksDoor)
         {
-            if (_state != DoorState.Opening)
+            if (_state == DoorState.Opening)
             {
-                return; // Якщо двері не відкриваються, нічого не змінюємо
+                UpdateOpening(); // Плавно відкриваємо двері
+                return;
             }
 
-            _openProgress = MathF.Min(1f, _openProgress + OpenSpeed); // Плавно зсуваємо двері в сторону стіни
-
-            if (_openProgress >= 1f)
+            if (_state == DoorState.Open)
             {
-                _state = DoorState.Open; // Коли двері повністю зникли, вони відкриті
+                TryStartClosing(playerBlocksDoor); // Після паузи пробуємо закрити двері, якщо гравець не стоїть у клітинці
+                return;
+            }
+
+            if (_state == DoorState.Closing)
+            {
+                UpdateClosing(); // Плавно закриваємо двері
             }
         }
 
@@ -101,6 +110,37 @@ namespace Wolfenstain3D
             };
 
             graphics.FillRectangle(doorBrush, visibleDoorRectangle); // Малюємо тільки ту частину дверей, яка ще не заїхала у стіну
+        }
+
+        private void UpdateOpening()
+        {
+            _openProgress = MathF.Min(1f, _openProgress + OpenSpeed); // Плавно зсуваємо двері в сторону стіни
+
+            if (_openProgress >= 1f)
+            {
+                _state = DoorState.Open; // Коли двері повністю зникли, вони відкриті
+                _openedAt = DateTime.UtcNow; // Запам'ятовуємо час відкриття для автозакривання
+            }
+        }
+
+        private void TryStartClosing(bool playerBlocksDoor)
+        {
+            double openedMilliseconds = (DateTime.UtcNow - _openedAt).TotalMilliseconds; // Скільки часу двері вже відкриті
+
+            if (openedMilliseconds >= AutoCloseDelayMilliseconds && !playerBlocksDoor)
+            {
+                _state = DoorState.Closing; // Закриваємо тільки якщо минуло 5 секунд і гравець не стоїть у клітинці дверей
+            }
+        }
+
+        private void UpdateClosing()
+        {
+            _openProgress = MathF.Max(0f, _openProgress - CloseSpeed); // Плавно повертаємо двері назад у клітинку
+
+            if (_openProgress <= 0f)
+            {
+                _state = DoorState.Closed; // Коли двері повністю повернулися, вони закриті
+            }
         }
     }
 }
