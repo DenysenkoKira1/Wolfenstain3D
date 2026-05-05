@@ -1,5 +1,5 @@
-using System; // Потрібно для DateTime і MathF
-using System.Drawing; // Потрібно для Graphics і Brush
+using System; // РџРѕС‚СЂС–Р±РЅРѕ РґР»СЏ DateTime С– MathF
+using System.Drawing; // РџРѕС‚СЂС–Р±РЅРѕ РґР»СЏ Graphics С– Brush
 
 namespace Wolfenstain3D
 {
@@ -21,31 +21,34 @@ namespace Wolfenstain3D
             Closing
         }
 
-        private const float OpenSpeed = 0.04f; // Швидкість відкривання дверей за один кадр
-        private const float CloseSpeed = 0.04f; // Швидкість закривання дверей за один кадр
-        private const int AutoCloseDelayMilliseconds = 1000; // Через скільки мілісекунд відкриті двері пробують закритися
+        private const float OpenSpeed = 0.04f; // РЁРІРёРґРєС–СЃС‚СЊ РІС–РґРєСЂРёРІР°РЅРЅСЏ РґРІРµСЂРµР№ Р·Р° РѕРґРёРЅ РєР°РґСЂ
+        private const float CloseSpeed = 0.04f; // РЁРІРёРґРєС–СЃС‚СЊ Р·Р°РєСЂРёРІР°РЅРЅСЏ РґРІРµСЂРµР№ Р·Р° РѕРґРёРЅ РєР°РґСЂ
+        private const int AutoCloseDelayMilliseconds = 1000; // Р§РµСЂРµР· СЃРєС–Р»СЊРєРё РјС–Р»С–СЃРµРєСѓРЅРґ РІС–РґРєСЂРёС‚С– РґРІРµСЂС– РїСЂРѕР±СѓСЋС‚СЊ Р·Р°РєСЂРёС‚РёСЃСЏ
 
-        private readonly DoorSlideDirection _slideDirection; // Напрямок, у який двері заїжджають у сусідню стіну
-        private DoorState _state = DoorState.Closed; // Поточний стан конкретних дверей
-        private float _openProgress; // Прогрес відкривання від 0 до 1
-        private DateTime _openedAt; // Час, коли двері повністю відкрилися
+        private readonly DoorSlideDirection _slideDirection; // РќР°РїСЂСЏРјРѕРє, Сѓ СЏРєРёР№ РґРІРµСЂС– Р·Р°С—Р¶РґР¶Р°СЋС‚СЊ Сѓ СЃСѓСЃС–РґРЅСЋ СЃС‚С–РЅСѓ
+        private DoorState _state = DoorState.Closed; // РџРѕС‚РѕС‡РЅРёР№ СЃС‚Р°РЅ РєРѕРЅРєСЂРµС‚РЅРёС… РґРІРµСЂРµР№
+        private float _openProgress; // РџСЂРѕРіСЂРµСЃ РІС–РґРєСЂРёРІР°РЅРЅСЏ РІС–Рґ 0 РґРѕ 1
+        private DateTime _openedAt; // Р§Р°СЃ, РєРѕР»Рё РґРІРµСЂС– РїРѕРІРЅС–СЃС‚СЋ РІС–РґРєСЂРёР»РёСЃСЏ
 
         public Door(int tileX, int tileY, DoorSlideDirection slideDirection)
         {
-            TileX = tileX; // Координата дверей у карті по X
-            TileY = tileY; // Координата дверей у карті по Y
-            _slideDirection = slideDirection; // Запам'ятовуємо, у який бік двері мають зникати
+            TileX = tileX; // РљРѕРѕСЂРґРёРЅР°С‚Р° РґРІРµСЂРµР№ Сѓ РєР°СЂС‚С– РїРѕ X
+            TileY = tileY; // РљРѕРѕСЂРґРёРЅР°С‚Р° РґРІРµСЂРµР№ Сѓ РєР°СЂС‚С– РїРѕ Y
+            _slideDirection = slideDirection; // Р—Р°РїР°Рј'СЏС‚РѕРІСѓС”РјРѕ, Сѓ СЏРєРёР№ Р±С–Рє РґРІРµСЂС– РјР°СЋС‚СЊ Р·РЅРёРєР°С‚Рё
         }
 
-        public int TileX { get; } // Позиція дверей у клітинках карти по X
-        public int TileY { get; } // Позиція дверей у клітинках карти по Y
-        public bool IsOpen => _state == DoorState.Open; // Чи двері вже повністю відкриті
+        public int TileX { get; } // РџРѕР·РёС†С–СЏ РґРІРµСЂРµР№ Сѓ РєР»С–С‚РёРЅРєР°С… РєР°СЂС‚Рё РїРѕ X
+        public int TileY { get; } // РџРѕР·РёС†С–СЏ РґРІРµСЂРµР№ Сѓ РєР»С–С‚РёРЅРєР°С… РєР°СЂС‚Рё РїРѕ Y
+        public bool IsOpen => _state == DoorState.Open; // Р§Рё РґРІРµСЂС– РІР¶Рµ РїРѕРІРЅС–СЃС‚СЋ РІС–РґРєСЂРёС‚С–
+        public event Action? OpeningStarted; // РџРѕРґС–СЏ РґР»СЏ Р·РІСѓРєСѓ РІС–РґРєСЂРёРІР°РЅРЅСЏ РґРІРµСЂРµР№
+        public event Action? ClosingStarted; // РџРѕРґС–СЏ РґР»СЏ Р·РІСѓРєСѓ Р·Р°РєСЂРёРІР°РЅРЅСЏ РґРІРµСЂРµР№
 
         public void StartOpening()
         {
             if (_state == DoorState.Closed || _state == DoorState.Closing)
             {
-                _state = DoorState.Opening; // Запускаємо відкривання тільки для закритих дверей або дверей, які ще закривалися
+                _state = DoorState.Opening; // Р—Р°РїСѓСЃРєР°С”РјРѕ РІС–РґРєСЂРёРІР°РЅРЅСЏ С‚С–Р»СЊРєРё РґР»СЏ Р·Р°РєСЂРёС‚РёС… РґРІРµСЂРµР№ Р°Р±Рѕ РґРІРµСЂРµР№, СЏРєС– С‰Рµ Р·Р°РєСЂРёРІР°Р»РёСЃСЏ
+                OpeningStarted?.Invoke(); // РџРѕРІС–РґРѕРјР»СЏС”РјРѕ РіСЂСѓ, С‰Рѕ С‚СЂРµР±Р° РїСЂРѕРіСЂР°С‚Рё Р·РІСѓРє РІС–РґРєСЂРёРІР°РЅРЅСЏ
             }
         }
 
@@ -53,19 +56,19 @@ namespace Wolfenstain3D
         {
             if (_state == DoorState.Opening)
             {
-                UpdateOpening(); // Плавно відкриваємо двері
+                UpdateOpening(); // РџР»Р°РІРЅРѕ РІС–РґРєСЂРёРІР°С”РјРѕ РґРІРµСЂС–
                 return;
             }
 
             if (_state == DoorState.Open)
             {
-                TryStartClosing(playerBlocksDoor); // Після паузи пробуємо закрити двері, якщо гравець не стоїть у клітинці
+                TryStartClosing(playerBlocksDoor); // РџС–СЃР»СЏ РїР°СѓР·Рё РїСЂРѕР±СѓС”РјРѕ Р·Р°РєСЂРёС‚Рё РґРІРµСЂС–, СЏРєС‰Рѕ РіСЂР°РІРµС†СЊ РЅРµ СЃС‚РѕС—С‚СЊ Сѓ РєР»С–С‚РёРЅС†С–
                 return;
             }
 
             if (_state == DoorState.Closing)
             {
-                UpdateClosing(); // Плавно закриваємо двері
+                UpdateClosing(); // РџР»Р°РІРЅРѕ Р·Р°РєСЂРёРІР°С”РјРѕ РґРІРµСЂС–
             }
         }
 
@@ -73,73 +76,74 @@ namespace Wolfenstain3D
         {
             if (_state == DoorState.Open)
             {
-                return false; // Повністю відкриті двері більше не блокують рух і промені
+                return false; // РџРѕРІРЅС–СЃС‚СЋ РІС–РґРєСЂРёС‚С– РґРІРµСЂС– Р±С–Р»СЊС€Рµ РЅРµ Р±Р»РѕРєСѓСЋС‚СЊ СЂСѓС… С– РїСЂРѕРјРµРЅС–
             }
 
-            float localX = worldX - TileX * tileSize; // X-координата точки всередині клітинки дверей
-            float localY = worldY - TileY * tileSize; // Y-координата точки всередині клітинки дверей
-            float openOffset = tileSize * _openProgress; // Наскільки двері вже заїхали у стіну
+            float localX = worldX - TileX * tileSize; // X-РєРѕРѕСЂРґРёРЅР°С‚Р° С‚РѕС‡РєРё РІСЃРµСЂРµРґРёРЅС– РєР»С–С‚РёРЅРєРё РґРІРµСЂРµР№
+            float localY = worldY - TileY * tileSize; // Y-РєРѕРѕСЂРґРёРЅР°С‚Р° С‚РѕС‡РєРё РІСЃРµСЂРµРґРёРЅС– РєР»С–С‚РёРЅРєРё РґРІРµСЂРµР№
+            float openOffset = tileSize * _openProgress; // РќР°СЃРєС–Р»СЊРєРё РґРІРµСЂС– РІР¶Рµ Р·Р°С—С…Р°Р»Рё Сѓ СЃС‚С–РЅСѓ
 
             return _slideDirection switch
             {
-                DoorSlideDirection.Left => localX <= tileSize - openOffset, // Двері зникають ліворуч, видима частина лишається зліва
-                DoorSlideDirection.Right => localX >= openOffset, // Двері зникають праворуч, видима частина лишається справа
-                DoorSlideDirection.Up => localY <= tileSize - openOffset, // Двері зникають вгору, видима частина лишається зверху
-                DoorSlideDirection.Down => localY >= openOffset, // Двері зникають вниз, видима частина лишається знизу
-                _ => true // Захист на випадок невідомого напрямку
+                DoorSlideDirection.Left => localX <= tileSize - openOffset, // Р”РІРµСЂС– Р·РЅРёРєР°СЋС‚СЊ Р»С–РІРѕСЂСѓС‡, РІРёРґРёРјР° С‡Р°СЃС‚РёРЅР° Р»РёС€Р°С”С‚СЊСЃСЏ Р·Р»С–РІР°
+                DoorSlideDirection.Right => localX >= openOffset, // Р”РІРµСЂС– Р·РЅРёРєР°СЋС‚СЊ РїСЂР°РІРѕСЂСѓС‡, РІРёРґРёРјР° С‡Р°СЃС‚РёРЅР° Р»РёС€Р°С”С‚СЊСЃСЏ СЃРїСЂР°РІР°
+                DoorSlideDirection.Up => localY <= tileSize - openOffset, // Р”РІРµСЂС– Р·РЅРёРєР°СЋС‚СЊ РІРіРѕСЂСѓ, РІРёРґРёРјР° С‡Р°СЃС‚РёРЅР° Р»РёС€Р°С”С‚СЊСЃСЏ Р·РІРµСЂС…Сѓ
+                DoorSlideDirection.Down => localY >= openOffset, // Р”РІРµСЂС– Р·РЅРёРєР°СЋС‚СЊ РІРЅРёР·, РІРёРґРёРјР° С‡Р°СЃС‚РёРЅР° Р»РёС€Р°С”С‚СЊСЃСЏ Р·РЅРёР·Сѓ
+                _ => true // Р—Р°С…РёСЃС‚ РЅР° РІРёРїР°РґРѕРє РЅРµРІС–РґРѕРјРѕРіРѕ РЅР°РїСЂСЏРјРєСѓ
             };
         }
 
         public void RenderMiniMap(Graphics graphics, int screenX, int screenY, int cellSize, Brush doorBrush)
         {
-            int doorOffset = (int)MathF.Floor(cellSize * _openProgress); // Зсув дверей на міні-мапі
-            int visibleDoorSize = cellSize - doorOffset; // Розмір частини дверей, яка ще видима
+            int doorOffset = (int)MathF.Floor(cellSize * _openProgress); // Р—СЃСѓРІ РґРІРµСЂРµР№ РЅР° РјС–РЅС–-РјР°РїС–
+            int visibleDoorSize = cellSize - doorOffset; // Р РѕР·РјС–СЂ С‡Р°СЃС‚РёРЅРё РґРІРµСЂРµР№, СЏРєР° С‰Рµ РІРёРґРёРјР°
 
             if (visibleDoorSize <= 0)
             {
-                return; // Якщо двері повністю зникли, малювати вже нічого
+                return; // РЇРєС‰Рѕ РґРІРµСЂС– РїРѕРІРЅС–СЃС‚СЋ Р·РЅРёРєР»Рё, РјР°Р»СЋРІР°С‚Рё РІР¶Рµ РЅС–С‡РѕРіРѕ
             }
 
             Rectangle visibleDoorRectangle = _slideDirection switch
             {
-                DoorSlideDirection.Left => new Rectangle(screenX, screenY, visibleDoorSize, cellSize), // Двері заїжджають у стіну ліворуч
-                DoorSlideDirection.Right => new Rectangle(screenX + doorOffset, screenY, visibleDoorSize, cellSize), // Двері заїжджають у стіну праворуч
-                DoorSlideDirection.Up => new Rectangle(screenX, screenY, cellSize, visibleDoorSize), // Двері заїжджають у стіну зверху
-                DoorSlideDirection.Down => new Rectangle(screenX, screenY + doorOffset, cellSize, visibleDoorSize), // Двері заїжджають у стіну знизу
-                _ => new Rectangle(screenX, screenY, cellSize, cellSize) // Резервний варіант для безпечного малювання
+                DoorSlideDirection.Left => new Rectangle(screenX, screenY, visibleDoorSize, cellSize), // Р”РІРµСЂС– Р·Р°С—Р¶РґР¶Р°СЋС‚СЊ Сѓ СЃС‚С–РЅСѓ Р»С–РІРѕСЂСѓС‡
+                DoorSlideDirection.Right => new Rectangle(screenX + doorOffset, screenY, visibleDoorSize, cellSize), // Р”РІРµСЂС– Р·Р°С—Р¶РґР¶Р°СЋС‚СЊ Сѓ СЃС‚С–РЅСѓ РїСЂР°РІРѕСЂСѓС‡
+                DoorSlideDirection.Up => new Rectangle(screenX, screenY, cellSize, visibleDoorSize), // Р”РІРµСЂС– Р·Р°С—Р¶РґР¶Р°СЋС‚СЊ Сѓ СЃС‚С–РЅСѓ Р·РІРµСЂС…Сѓ
+                DoorSlideDirection.Down => new Rectangle(screenX, screenY + doorOffset, cellSize, visibleDoorSize), // Р”РІРµСЂС– Р·Р°С—Р¶РґР¶Р°СЋС‚СЊ Сѓ СЃС‚С–РЅСѓ Р·РЅРёР·Сѓ
+                _ => new Rectangle(screenX, screenY, cellSize, cellSize) // Р РµР·РµСЂРІРЅРёР№ РІР°СЂС–Р°РЅС‚ РґР»СЏ Р±РµР·РїРµС‡РЅРѕРіРѕ РјР°Р»СЋРІР°РЅРЅСЏ
             };
 
-            graphics.FillRectangle(doorBrush, visibleDoorRectangle); // Малюємо тільки ту частину дверей, яка ще не заїхала у стіну
+            graphics.FillRectangle(doorBrush, visibleDoorRectangle); // РњР°Р»СЋС”РјРѕ С‚С–Р»СЊРєРё С‚Сѓ С‡Р°СЃС‚РёРЅСѓ РґРІРµСЂРµР№, СЏРєР° С‰Рµ РЅРµ Р·Р°С—С…Р°Р»Р° Сѓ СЃС‚С–РЅСѓ
         }
 
         private void UpdateOpening()
         {
-            _openProgress = MathF.Min(1f, _openProgress + OpenSpeed); // Плавно зсуваємо двері в сторону стіни
+            _openProgress = MathF.Min(1f, _openProgress + OpenSpeed); // РџР»Р°РІРЅРѕ Р·СЃСѓРІР°С”РјРѕ РґРІРµСЂС– РІ СЃС‚РѕСЂРѕРЅСѓ СЃС‚С–РЅРё
 
             if (_openProgress >= 1f)
             {
-                _state = DoorState.Open; // Коли двері повністю зникли, вони відкриті
-                _openedAt = DateTime.UtcNow; // Запам'ятовуємо час відкриття для автозакривання
+                _state = DoorState.Open; // РљРѕР»Рё РґРІРµСЂС– РїРѕРІРЅС–СЃС‚СЋ Р·РЅРёРєР»Рё, РІРѕРЅРё РІС–РґРєСЂРёС‚С–
+                _openedAt = DateTime.UtcNow; // Р—Р°РїР°Рј'СЏС‚РѕРІСѓС”РјРѕ С‡Р°СЃ РІС–РґРєСЂРёС‚С‚СЏ РґР»СЏ Р°РІС‚РѕР·Р°РєСЂРёРІР°РЅРЅСЏ
             }
         }
 
         private void TryStartClosing(bool playerBlocksDoor)
         {
-            double openedMilliseconds = (DateTime.UtcNow - _openedAt).TotalMilliseconds; // Скільки часу двері вже відкриті
+            double openedMilliseconds = (DateTime.UtcNow - _openedAt).TotalMilliseconds; // РЎРєС–Р»СЊРєРё С‡Р°СЃСѓ РґРІРµСЂС– РІР¶Рµ РІС–РґРєСЂРёС‚С–
 
             if (openedMilliseconds >= AutoCloseDelayMilliseconds && !playerBlocksDoor)
             {
-                _state = DoorState.Closing; // Закриваємо тільки якщо минуло 5 секунд і гравець не стоїть у клітинці дверей
+                _state = DoorState.Closing; // Р—Р°РєСЂРёРІР°С”РјРѕ С‚С–Р»СЊРєРё СЏРєС‰Рѕ РјРёРЅСѓР»Р° РїР°СѓР·Р° С– РіСЂР°РІРµС†СЊ РЅРµ СЃС‚РѕС—С‚СЊ Сѓ РєР»С–С‚РёРЅС†С– РґРІРµСЂРµР№
+                ClosingStarted?.Invoke(); // РџРѕРІС–РґРѕРјР»СЏС”РјРѕ РіСЂСѓ, С‰Рѕ С‚СЂРµР±Р° РїСЂРѕРіСЂР°С‚Рё Р·РІСѓРє Р·Р°РєСЂРёРІР°РЅРЅСЏ
             }
         }
 
         private void UpdateClosing()
         {
-            _openProgress = MathF.Max(0f, _openProgress - CloseSpeed); // Плавно повертаємо двері назад у клітинку
+            _openProgress = MathF.Max(0f, _openProgress - CloseSpeed); // РџР»Р°РІРЅРѕ РїРѕРІРµСЂС‚Р°С”РјРѕ РґРІРµСЂС– РЅР°Р·Р°Рґ Сѓ РєР»С–С‚РёРЅРєСѓ
 
             if (_openProgress <= 0f)
             {
-                _state = DoorState.Closed; // Коли двері повністю повернулися, вони закриті
+                _state = DoorState.Closed; // РљРѕР»Рё РґРІРµСЂС– РїРѕРІРЅС–СЃС‚СЋ РїРѕРІРµСЂРЅСѓР»РёСЃСЏ, РІРѕРЅРё Р·Р°РєСЂРёС‚С–
             }
         }
     }

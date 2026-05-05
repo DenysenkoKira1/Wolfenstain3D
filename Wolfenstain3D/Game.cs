@@ -1,83 +1,92 @@
-using System; // Потрібно для EventArgs
-using System.Drawing; // Потрібно для Graphics, Color, Rectangle
-using System.Windows.Forms; // Потрібно для Form і Timer
+using System; // РџРѕС‚СЂС–Р±РЅРѕ РґР»СЏ EventArgs
+using System.Drawing; // РџРѕС‚СЂС–Р±РЅРѕ РґР»СЏ Graphics, Color, Rectangle
+using System.Windows.Forms; // РџРѕС‚СЂС–Р±РЅРѕ РґР»СЏ Form С– Timer
 
 namespace Wolfenstain3D
 {
     internal class Game
     {
-        private readonly Form _hostForm; // Форма, у якій буде відображатися гра
-        private readonly System.Windows.Forms.Timer _gameTimer; // Таймер для ігрового циклу
-        private readonly Player _player; // Гравець, яким ми будемо керувати
-        private readonly InputController _input; // Обробник натиснутих клавіш
-        private readonly GameMap _map; // Карта рівня
-        private readonly Raycaster _raycaster; // Об’єкт для запуску raycasting-променів
+        private readonly Form _hostForm; // Р¤РѕСЂРјР°, Сѓ СЏРєС–Р№ Р±СѓРґРµ РІС–РґРѕР±СЂР°Р¶Р°С‚РёСЃСЏ РіСЂР°
+        private readonly System.Windows.Forms.Timer _gameTimer; // РўР°Р№РјРµСЂ РґР»СЏ С–РіСЂРѕРІРѕРіРѕ С†РёРєР»Сѓ
+        private readonly GameSound _sound; // Р—РІСѓРєРё РіСЂРё: РґРІРµСЂС– С‚Р° РјСѓР·РёРєР° СЂС–РІРЅСЏ
+        private readonly Player _player; // Р“СЂР°РІРµС†СЊ, СЏРєРёРј РјРё Р±СѓРґРµРјРѕ РєРµСЂСѓРІР°С‚Рё
+        private readonly InputController _input; // РћР±СЂРѕР±РЅРёРє РЅР°С‚РёСЃРЅСѓС‚РёС… РєР»Р°РІС–С€
+        private readonly GameMap _map; // РљР°СЂС‚Р° СЂС–РІРЅСЏ
+        private readonly Raycaster _raycaster; // РћР±вЂ™С”РєС‚ РґР»СЏ Р·Р°РїСѓСЃРєСѓ raycasting-РїСЂРѕРјРµРЅС–РІ
 
         public Game(Form hostForm)
         {
-            _hostForm = hostForm; // Запам’ятовуємо форму
-            _gameTimer = new System.Windows.Forms.Timer(); // Створюємо WinForms-таймер
-            _gameTimer.Interval = 16; // Приблизно 60 FPS
-            _gameTimer.Tick += GameLoop; // Підписуємося на виклик ігрового циклу
-            _input = new InputController(); // Створюємо обробник клавіш
-            _map = new GameMap(); // Створюємо карту рівня
-            _player = new Player(_map.PlayerStartX, _map.PlayerStartY, _map.PlayerStartAngle); // Створюємо гравця у стартовій позиції з карти
-            _raycaster = new Raycaster(); // Створюємо raycaster для променів
+            _hostForm = hostForm; // Р—Р°РїР°РјвЂ™СЏС‚РѕРІСѓС”РјРѕ С„РѕСЂРјСѓ
+            _gameTimer = new System.Windows.Forms.Timer(); // РЎС‚РІРѕСЂСЋС”РјРѕ WinForms-С‚Р°Р№РјРµСЂ
+            _gameTimer.Interval = 16; // РџСЂРёР±Р»РёР·РЅРѕ 60 FPS
+            _gameTimer.Tick += GameLoop; // РџС–РґРїРёСЃСѓС”РјРѕСЃСЏ РЅР° РІРёРєР»РёРє С–РіСЂРѕРІРѕРіРѕ С†РёРєР»Сѓ
+            _input = new InputController(); // РЎС‚РІРѕСЂСЋС”РјРѕ РѕР±СЂРѕР±РЅРёРє РєР»Р°РІС–С€
+            _sound = new GameSound(); // Р“РѕС‚СѓС”РјРѕ Р·РІСѓРєРё РіСЂРё
+            _map = new GameMap(_sound); // РЎС‚РІРѕСЂСЋС”РјРѕ РєР°СЂС‚Сѓ СЂС–РІРЅСЏ С– РїРµСЂРµРґР°С”РјРѕ С—Р№ Р·РІСѓРє РґРІРµСЂРµР№
+            _player = new Player(_map.PlayerStartX, _map.PlayerStartY, _map.PlayerStartAngle); // РЎС‚РІРѕСЂСЋС”РјРѕ РіСЂР°РІС†СЏ Сѓ СЃС‚Р°СЂС‚РѕРІС–Р№ РїРѕР·РёС†С–С— Р· РєР°СЂС‚Рё
+            _raycaster = new Raycaster(); // РЎС‚РІРѕСЂСЋС”РјРѕ raycaster РґР»СЏ РїСЂРѕРјРµРЅС–РІ
         }
 
         public void Start()
         {
-            _gameTimer.Start(); // Запускаємо таймер
+            _sound.StartLevelMusic(); // Р—Р°РїСѓСЃРєР°С”РјРѕ РјСѓР·РёРєСѓ РїРµСЂС€РѕРіРѕ СЂС–РІРЅСЏ
+            _gameTimer.Start(); // Р—Р°РїСѓСЃРєР°С”РјРѕ С‚Р°Р№РјРµСЂ
+        }
+
+        public void Stop()
+        {
+            _gameTimer.Stop(); // Р—СѓРїРёРЅСЏС”РјРѕ С–РіСЂРѕРІРёР№ С†РёРєР»
+            _sound.Dispose(); // Р—СѓРїРёРЅСЏС”РјРѕ С‚Р° Р·РІС–Р»СЊРЅСЏС”РјРѕ Р·РІСѓРєРё
         }
 
         private void GameLoop(object? sender, EventArgs e)
         {
-            Update(); // Оновлюємо логіку гри
-            _hostForm.Invalidate(); // Просимо форму перемалюватися
+            Update(); // РћРЅРѕРІР»СЋС”РјРѕ Р»РѕРіС–РєСѓ РіСЂРё
+            _hostForm.Invalidate(); // РџСЂРѕСЃРёРјРѕ С„РѕСЂРјСѓ РїРµСЂРµРјР°Р»СЋРІР°С‚РёСЃСЏ
         }
 
         private void Update()
         {
-            _map.UpdateDoors(_player.X, _player.Y); // Плавно оновлюємо двері й не даємо їм закриватися на гравцеві
-            _player.Update(_input, _map); // Оновлюємо гравця з урахуванням карти та collision
+            _map.UpdateDoors(_player.X, _player.Y); // РџР»Р°РІРЅРѕ РѕРЅРѕРІР»СЋС”РјРѕ РґРІРµСЂС– Р№ РЅРµ РґР°С”РјРѕ С—Рј Р·Р°РєСЂРёРІР°С‚РёСЃСЏ РЅР° РіСЂР°РІС†РµРІС–
+            _player.Update(_input, _map); // РћРЅРѕРІР»СЋС”РјРѕ РіСЂР°РІС†СЏ Р· СѓСЂР°С…СѓРІР°РЅРЅСЏРј РєР°СЂС‚Рё С‚Р° collision
         }
 
         public void TryOpenDoor()
         {
-            _map.TryOpenDoor(_player.X, _player.Y, _player.Angle); // Просимо карту відкрити двері перед гравцем
+            _map.TryOpenDoor(_player.X, _player.Y, _player.Angle); // РџСЂРѕСЃРёРјРѕ РєР°СЂС‚Сѓ РІС–РґРєСЂРёС‚Рё РґРІРµСЂС– РїРµСЂРµРґ РіСЂР°РІС†РµРј
         }
 
         public void Render(Graphics graphics)
         {
-            graphics.Clear(Color.Black); // Очищаємо фон перед новим кадром
+            graphics.Clear(Color.Black); // РћС‡РёС‰Р°С”РјРѕ С„РѕРЅ РїРµСЂРµРґ РЅРѕРІРёРј РєР°РґСЂРѕРј
 
-            Rectangle gameViewport = new Rectangle(20, 20, 660, 560); // Основна область для 3D-вигляду
-            _raycaster.Render3D(graphics, _player, _map, gameViewport); // Малюємо псевдо-3D сцену
+            Rectangle gameViewport = new Rectangle(20, 20, 660, 560); // РћСЃРЅРѕРІРЅР° РѕР±Р»Р°СЃС‚СЊ РґР»СЏ 3D-РІРёРіР»СЏРґСѓ
+            _raycaster.Render3D(graphics, _player, _map, gameViewport); // РњР°Р»СЋС”РјРѕ РїСЃРµРІРґРѕ-3D СЃС†РµРЅСѓ
 
-            int miniMapX = 710; // X-позиція міні-мапи справа
-            int miniMapY = 20; // Y-позиція міні-мапи зверху
-            int miniMapCellSize = Math.Max(10, Math.Min(14, Math.Min(350 / _map.Width, 350 / _map.Height))); // Підбираємо розмір клітинки, щоб карта вмістилася
-            float miniMapScale = (float)miniMapCellSize / _map.TileSize; // Масштаб зі світу гри в міні-мапу
+            int miniMapX = 710; // X-РїРѕР·РёС†С–СЏ РјС–РЅС–-РјР°РїРё СЃРїСЂР°РІР°
+            int miniMapY = 20; // Y-РїРѕР·РёС†С–СЏ РјС–РЅС–-РјР°РїРё Р·РІРµСЂС…Сѓ
+            int miniMapCellSize = Math.Max(10, Math.Min(14, Math.Min(350 / _map.Width, 350 / _map.Height))); // РџС–РґР±РёСЂР°С”РјРѕ СЂРѕР·РјС–СЂ РєР»С–С‚РёРЅРєРё, С‰РѕР± РєР°СЂС‚Р° РІРјС–СЃС‚РёР»Р°СЃСЏ
+            float miniMapScale = (float)miniMapCellSize / _map.TileSize; // РњР°СЃС€С‚Р°Р± Р·С– СЃРІС–С‚Сѓ РіСЂРё РІ РјС–РЅС–-РјР°РїСѓ
 
-            _map.RenderMiniMap(graphics, miniMapX, miniMapY, miniMapCellSize); // Малюємо карту поверх 3D як debug overlay
-            _raycaster.RenderMiniMapRays(graphics, _player, _map, miniMapX, miniMapY, miniMapScale); // Малюємо промені до стін
-            _player.RenderMiniMap(graphics, miniMapX, miniMapY, miniMapScale); // Малюємо гравця поверх карти
-            _player.RenderDebugInfo(graphics, miniMapX, miniMapY + _map.Height * miniMapCellSize + 16); // Малюємо короткий debug-блок
+            _map.RenderMiniMap(graphics, miniMapX, miniMapY, miniMapCellSize); // РњР°Р»СЋС”РјРѕ РєР°СЂС‚Сѓ РїРѕРІРµСЂС… 3D СЏРє debug overlay
+            _raycaster.RenderMiniMapRays(graphics, _player, _map, miniMapX, miniMapY, miniMapScale); // РњР°Р»СЋС”РјРѕ РїСЂРѕРјРµРЅС– РґРѕ СЃС‚С–РЅ
+            _player.RenderMiniMap(graphics, miniMapX, miniMapY, miniMapScale); // РњР°Р»СЋС”РјРѕ РіСЂР°РІС†СЏ РїРѕРІРµСЂС… РєР°СЂС‚Рё
+            _player.RenderDebugInfo(graphics, miniMapX, miniMapY + _map.Height * miniMapCellSize + 16); // РњР°Р»СЋС”РјРѕ РєРѕСЂРѕС‚РєРёР№ debug-Р±Р»РѕРє
         }
 
         public void KeyDown(Keys key)
         {
-            _input.KeyDown(key); // Передаємо натиснуту клавішу в InputController
+            _input.KeyDown(key); // РџРµСЂРµРґР°С”РјРѕ РЅР°С‚РёСЃРЅСѓС‚Сѓ РєР»Р°РІС–С€Сѓ РІ InputController
 
             if (key == Keys.Space)
             {
-                TryOpenDoor(); // Якщо натиснули Space, пробуємо відкрити двері перед гравцем
+                TryOpenDoor(); // РЇРєС‰Рѕ РЅР°С‚РёСЃРЅСѓР»Рё Space, РїСЂРѕР±СѓС”РјРѕ РІС–РґРєСЂРёС‚Рё РґРІРµСЂС– РїРµСЂРµРґ РіСЂР°РІС†РµРј
             }
         }
 
         public void KeyUp(Keys key)
         {
-            _input.KeyUp(key); // Передаємо відпущену клавішу в InputController
+            _input.KeyUp(key); // РџРµСЂРµРґР°С”РјРѕ РІС–РґРїСѓС‰РµРЅСѓ РєР»Р°РІС–С€Сѓ РІ InputController
         }
     }
 }

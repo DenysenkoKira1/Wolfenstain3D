@@ -1,5 +1,5 @@
-﻿using System; // Потрібно для MathF
-using System.Collections.Generic; // Потрібно для List<Door>
+using System; // Потрібно для MathF
+using System.Collections.Generic; // Потрібно для List<Door>, IReadOnlyList<WallTorch>, IReadOnlyList<Knight>
 using System.Drawing; // Потрібно для Graphics, Brush, Pen, Color
 
 namespace Wolfenstain3D
@@ -10,9 +10,14 @@ namespace Wolfenstain3D
 
         private readonly int[,] _tiles; // Карта рівня у вигляді числових тайлів
         private readonly List<Door> _doors = new List<Door>(); // Усі двері рівня як окремі об'єкти
+        private readonly List<WallTorch> _wallTorches = new List<WallTorch>(); // Усі факели, закріплені на стінах
+        private readonly List<Knight> _knights = new List<Knight>(); // Усі рицарі, розставлені по кімнатах
+        private readonly GameSound _sound; // Звуки гри, які використовує карта для дверей
 
-        public GameMap()
+        public GameMap(GameSound sound)
         {
+            _sound = sound; // Запам'ятовуємо звук, щоб двері могли запускати DoorOpen і DoorClose
+
             string[] layout =
             {
                 "#########################",
@@ -72,6 +77,8 @@ namespace Wolfenstain3D
             }
 
             CreateDoors(); // Після читання всієї карти створюємо двері з правильним напрямком відкривання
+            CreateWallTorches(); // Створюємо факели у місцях, позначених хрестиками на міні-мапі
+            CreateKnights(); // Створюємо рицарів у місцях, позначених хрестиками на міні-мапі
 
             if (!playerStartFound)
             {
@@ -88,6 +95,8 @@ namespace Wolfenstain3D
         public float PlayerStartX { get; } // Стартова позиція гравця по X
         public float PlayerStartY { get; } // Стартова позиція гравця по Y
         public float PlayerStartAngle { get; } // Стартовий кут погляду гравця
+        public IReadOnlyList<WallTorch> WallTorches => _wallTorches; // Факели, які raycaster малює поверх стін
+        public IReadOnlyList<Knight> Knights => _knights; // Рицарі, яких raycaster малює як standing-спрайти
 
         public bool IsDoor(int tileX, int tileY)
         {
@@ -205,6 +214,170 @@ namespace Wolfenstain3D
                     graphics.DrawRectangle(gridPen, screenX, screenY, cellSize, cellSize); // Малюємо межу клітинки
                 }
             }
+
+            RenderWallTorchesOnMiniMap(graphics, mapX, mapY, cellSize); // Малюємо факели на міні-мапі поверх сітки
+            RenderKnightsOnMiniMap(graphics, mapX, mapY, cellSize); // Малюємо рицарів на міні-мапі
+        }
+
+        private void CreateWallTorches()
+        {
+            float topTorchX = 9.5f * TileSize; // Верхній факел, який ми вже додали раніше
+            float topTorchY = 12.04f * TileSize; // Трохи перед стіною з боку кімнати, щоб факел не ховався в стіну
+            float bottomTorchX = 9.5f * TileSize; // Нижній факел, який ми вже додали раніше
+            float bottomTorchY = 16.96f * TileSize; // Трохи перед стіною з боку кімнати
+
+            _wallTorches.Add(new WallTorch(topTorchX, topTorchY, 0f, 1f)); // Лишаємо вже доданий верхній факел
+            _wallTorches.Add(new WallTorch(bottomTorchX, bottomTorchY, 0f, -1f)); // Лишаємо вже доданий нижній факел
+
+            AddTorchOnWallFace(1, 0, 0f, 1f); // Верхня зовнішня стіна, факел дивиться вниз
+            AddTorchOnWallFace(6, 0, 0f, 1f); // Верхня зовнішня стіна, факел дивиться вниз
+            AddTorchOnWallFace(10, 0, 0f, 1f); // Верхня зовнішня стіна, факел дивиться вниз
+            AddTorchOnWallFace(17, 0, 0f, 1f); // Верхня зовнішня стіна, факел дивиться вниз
+            AddTorchOnWallFace(21, 0, 0f, 1f); // Верхня зовнішня стіна, факел дивиться вниз
+
+            AddTorchOnWallFace(0, 3, 1f, 0f); // Ліва зовнішня стіна, факел дивиться праворуч
+            AddTorchOnWallFace(0, 8, 1f, 0f); // Ліва зовнішня стіна, факел дивиться праворуч
+            AddTorchOnWallFace(0, 14, 1f, 0f); // Ліва зовнішня стіна, факел дивиться праворуч
+            AddTorchOnWallFace(0, 19, 1f, 0f); // Ліва зовнішня стіна, факел дивиться праворуч
+
+            AddTorchOnWallFace(24, 7, -1f, 0f); // Права зовнішня стіна, факел дивиться ліворуч
+            AddTorchOnWallFace(24, 11, -1f, 0f); // Права зовнішня стіна, факел дивиться ліворуч
+            AddTorchOnWallFace(24, 15, -1f, 0f); // Права зовнішня стіна, факел дивиться ліворуч
+            AddTorchOnWallFace(24, 19, -1f, 0f); // Права зовнішня стіна, факел дивиться ліворуч
+
+            AddTorchOnWallFace(2, 22, 0f, -1f); // Нижня зовнішня стіна, факел дивиться вгору
+            AddTorchOnWallFace(5, 22, 0f, -1f); // Нижня зовнішня стіна, факел дивиться вгору
+            AddTorchOnWallFace(10, 22, 0f, -1f); // Нижня зовнішня стіна, факел дивиться вгору
+            AddTorchOnWallFace(13, 22, 0f, -1f); // Нижня зовнішня стіна, факел дивиться вгору
+            AddTorchOnWallFace(18, 22, 0f, -1f); // Нижня зовнішня стіна, факел дивиться вгору
+            AddTorchOnWallFace(21, 22, 0f, -1f); // Нижня зовнішня стіна, факел дивиться вгору
+
+            AddTorchOnWallFace(8, 5, 0f, 1f); // Внутрішня горизонтальна стіна біля верхньої лівої кімнати
+            AddTorchOnWallFace(14, 3, 1f, 0f); // Внутрішня вертикальна стіна біля верхньої центральної кімнати
+            AddTorchOnWallFace(15, 8, -1f, 0f); // Центральна вертикальна стіна, факел дивиться ліворуч
+            AddTorchOnWallFace(20, 8, -1f, 0f); // Права внутрішня вертикальна стіна, факел дивиться ліворуч
+            AddTorchOnWallFace(15, 15, -1f, 0f); // Центральна вертикальна стіна біля стартової кімнати
+            AddTorchOnWallFace(6, 17, 0f, -1f); // Внутрішня горизонтальна стіна під стартовою кімнатою
+        }
+
+        private void AddTorchOnWallFace(int tileX, int tileY, float normalX, float normalY)
+        {
+            const float WallOffset = 0.04f; // Маленький зсув від стіни, щоб факел не ховався в текстурі стіни
+
+            float torchX = (tileX + 0.5f + normalX * (0.5f + WallOffset)) * TileSize; // X факела біля потрібної сторони клітинки
+            float torchY = (tileY + 0.5f + normalY * (0.5f + WallOffset)) * TileSize; // Y факела біля потрібної сторони клітинки
+
+            _wallTorches.Add(new WallTorch(torchX, torchY, normalX, normalY)); // Додаємо факел з фіксованим напрямком стіни
+        }
+
+        private void CreateKnights()
+        {
+            AddKnightAtTile(3, 1); // Рицар у верхній лівій кімнаті
+            AddKnightAtTile(12, 1); // Рицар у верхній центральній частині
+            AddKnightAtTile(23, 2); // Рицар у верхній правій кімнаті
+            AddKnightAtTile(8, 4); // Рицар біля верхнього проходу
+            AddKnightAtTile(1, 6); // Рицар у лівій верхній кімнаті
+            AddKnightAtTile(7, 6); // Рицар біля лівого проходу
+            AddKnightAtTile(16, 6); // Рицар у правій верхній кімнаті
+            AddKnightAtTile(5, 10); // Рицар у лівій середній кімнаті
+            AddKnightAtTile(14, 10); // Рицар у центральній кімнаті
+            AddKnightAtTile(5, 12); // Рицар біля стартової кімнати ліворуч
+            AddKnightAtTile(7, 12); // Рицар біля стартової кімнати ліворуч
+            AddKnightAtTile(14, 12); // Рицар біля стартової кімнати праворуч
+            AddKnightAtTile(20, 12); // Рицар у правій середній кімнаті
+            AddKnightAtTile(1, 16); // Рицар у нижній лівій кімнаті
+            AddKnightAtTile(16, 16); // Рицар у нижній центральній кімнаті
+            AddKnightAtTile(6, 18); // Рицар у нижній лівій кімнаті
+            AddKnightAtTile(14, 18); // Рицар у нижній центральній кімнаті
+            AddKnightAtTile(17, 18); // Рицар у нижній правій частині центру
+            AddKnightAtTile(1, 21); // Рицар біля нижнього лівого кута
+            AddKnightAtTile(23, 21); // Рицар біля нижнього правого кута
+        }
+
+        private void AddKnightAtTile(int tileX, int tileY)
+        {
+            float knightX = (tileX + 0.5f) * TileSize; // X-координата центру клітинки
+            float knightY = (tileY + 0.5f) * TileSize; // Y-координата центру клітинки
+            PointF facing = ChooseKnightFacing(tileX, tileY); // Вибираємо бік, куди рицар має дивитися в кімнату
+
+            _knights.Add(new Knight(knightX, knightY, facing.X, facing.Y)); // Додаємо рицаря з фіксованим напрямком обличчя
+        }
+
+        private PointF ChooseKnightFacing(int tileX, int tileY)
+        {
+            int upDistance = DistanceToWall(tileX, tileY, 0, -1); // Найближча стіна зверху
+            int downDistance = DistanceToWall(tileX, tileY, 0, 1); // Найближча стіна знизу
+            int leftDistance = DistanceToWall(tileX, tileY, -1, 0); // Найближча стіна зліва
+            int rightDistance = DistanceToWall(tileX, tileY, 1, 0); // Найближча стіна справа
+            int nearestDistance = Math.Min(Math.Min(upDistance, downDistance), Math.Min(leftDistance, rightDistance)); // Шукаємо найближчу стіну
+
+            if (nearestDistance == upDistance)
+            {
+                return new PointF(0f, 1f); // Якщо стіна зверху, рицар дивиться вниз у кімнату
+            }
+
+            if (nearestDistance == downDistance)
+            {
+                return new PointF(0f, -1f); // Якщо стіна знизу, рицар дивиться вгору у кімнату
+            }
+
+            if (nearestDistance == leftDistance)
+            {
+                return new PointF(1f, 0f); // Якщо стіна зліва, рицар дивиться праворуч у кімнату
+            }
+
+            return new PointF(-1f, 0f); // Якщо стіна справа, рицар дивиться ліворуч у кімнату
+        }
+
+        private int DistanceToWall(int tileX, int tileY, int stepX, int stepY)
+        {
+            int maxDistance = Math.Max(Width, Height); // Максимальна дистанція пошуку в межах карти
+
+            for (int distance = 1; distance <= maxDistance; distance++)
+            {
+                int checkX = tileX + stepX * distance; // Клітинка перевірки по X
+                int checkY = tileY + stepY * distance; // Клітинка перевірки по Y
+
+                if (checkX < 0 || checkY < 0 || checkX >= Width || checkY >= Height)
+                {
+                    return distance; // Край карти теж вважаємо найближчою межею кімнати
+                }
+
+                if (_tiles[checkY, checkX] == 1)
+                {
+                    return distance; // Знайшли справжню стіну
+                }
+            }
+
+            return int.MaxValue; // Резервний варіант, якщо стіну не знайдено
+        }
+
+        private void RenderWallTorchesOnMiniMap(Graphics graphics, int mapX, int mapY, int cellSize)
+        {
+            float miniMapScale = (float)cellSize / TileSize; // Масштаб для переведення світових координат у міні-мапу
+
+            foreach (WallTorch torch in _wallTorches)
+            {
+                float torchX = mapX + torch.X * miniMapScale; // X факела на міні-мапі
+                float torchY = mapY + torch.Y * miniMapScale; // Y факела на міні-мапі
+
+                using Brush torchBrush = new SolidBrush(torch.MiniMapColor); // Колір позначки факела
+                graphics.FillEllipse(torchBrush, torchX - 3, torchY - 3, 6, 6); // Маленька точка факела на міні-мапі
+            }
+        }
+
+        private void RenderKnightsOnMiniMap(Graphics graphics, int mapX, int mapY, int cellSize)
+        {
+            float miniMapScale = (float)cellSize / TileSize; // Масштаб для переведення світових координат у міні-мапу
+
+            foreach (Knight knight in _knights)
+            {
+                float knightX = mapX + knight.X * miniMapScale; // X рицаря на міні-мапі
+                float knightY = mapY + knight.Y * miniMapScale; // Y рицаря на міні-мапі
+
+                using Brush knightBrush = new SolidBrush(knight.MiniMapColor); // Колір позначки рицаря
+                graphics.FillRectangle(knightBrush, knightX - 3, knightY - 3, 6, 6); // Малюємо рицаря маленьким квадратом
+            }
         }
 
         private void CreateDoors()
@@ -216,7 +389,10 @@ namespace Wolfenstain3D
                     if (_tiles[y, x] == 2)
                     {
                         DoorSlideDirection direction = ChooseDoorSlideDirection(x, y); // Визначаємо, у яку сусідню стіну мають заїжджати двері
-                        _doors.Add(new Door(x, y, direction)); // Створюємо двері з власними координатами, станом і напрямком
+                        Door door = new Door(x, y, direction); // Створюємо двері з власними координатами, станом і напрямком
+                        door.OpeningStarted += _sound.PlayDoorOpen; // При старті відкривання вмикаємо звук DoorOpen
+                        door.ClosingStarted += _sound.PlayDoorClose; // При старті закривання вмикаємо звук DoorClose
+                        _doors.Add(door); // Додаємо двері у список карти
                     }
                 }
             }
@@ -288,8 +464,3 @@ namespace Wolfenstain3D
         }
     }
 }
-
-
-
-
-

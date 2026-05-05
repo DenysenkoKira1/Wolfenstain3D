@@ -1,4 +1,5 @@
 ﻿using System; // Потрібно для MathF
+using System.Collections.Generic; // Потрібно для List<WallTorch>, List<Knight>
 using System.Drawing; // Потрібно для Graphics, Pen, Color, Rectangle, PointF, Bitmap
 using System.Drawing.Imaging; // Потрібно для PixelFormat, BitmapData, ImageLockMode
 using System.Runtime.InteropServices; // Потрібно для швидкого копіювання масиву пікселів у Bitmap
@@ -20,14 +21,18 @@ namespace Wolfenstain3D
         public void Render3D(Graphics graphics, Player player, GameMap map, Rectangle viewport)
         {
             int[] framePixels = new int[viewport.Width * viewport.Height]; // Масив пікселів усього кадру
+            float[] wallDistances = new float[viewport.Width]; // Z-buffer: відстань до стіни для кожної колонки
+
             float projectionDistance = viewport.Width / (2f * MathF.Tan(FieldOfView / 2f)); // Відстань до уявної площини проєкції
             float angleStep = FieldOfView / viewport.Width; // Один промінь на кожну вертикальну колонку екрана
             float startAngle = player.Angle - FieldOfView / 2f; // Початковий кут лівого краю огляду
 
             RenderCeiling(framePixels, viewport.Width, viewport.Height, player, map, projectionDistance, startAngle, angleStep); // Малюємо стелю в масив кадру
             RenderFloor(framePixels, viewport.Width, viewport.Height, player, map, projectionDistance, startAngle, angleStep); // Малюємо підлогу в масив кадру
-            RenderWalls(framePixels, viewport.Width, viewport.Height, player, map, projectionDistance, startAngle, angleStep); // Малюємо стіни і двері поверх стелі та підлоги
+            RenderWalls(framePixels, viewport.Width, viewport.Height, player, map, projectionDistance, startAngle, angleStep, wallDistances); // Малюємо стіни і двері та запам'ятовуємо їхню глибину
             FillHorizonLine(framePixels, viewport.Width, viewport.Height); // Закриваємо лінію горизонту, яку не малює ні стеля, ні підлога
+            RenderWallTorches(framePixels, viewport.Width, viewport.Height, player, map, projectionDistance, wallDistances); // Малюємо настінні факели поверх сцени
+            RenderKnights(framePixels, viewport.Width, viewport.Height, player, map, projectionDistance, wallDistances); // Малюємо рицарів як standing-спрайти
 
             using Bitmap sceneBitmap = new Bitmap(viewport.Width, viewport.Height, PixelFormat.Format32bppArgb); // Bitmap потрібен тільки для показу готового кадру
             CopyFrameToBitmap(framePixels, sceneBitmap); // Швидко копіюємо масив пікселів у Bitmap одним блоком
@@ -114,7 +119,7 @@ namespace Wolfenstain3D
             }
         }
 
-        private void RenderWalls(int[] framePixels, int frameWidth, int frameHeight, Player player, GameMap map, float projectionDistance, float startAngle, float angleStep)
+        private void RenderWalls(int[] framePixels, int frameWidth, int frameHeight, Player player, GameMap map, float projectionDistance, float startAngle, float angleStep, float[] wallDistances)
         {
             for (int column = 0; column < frameWidth; column++)
             {
@@ -123,6 +128,7 @@ namespace Wolfenstain3D
 
                 float correctedDistance = hit.Distance * MathF.Cos(rayAngle - player.Angle); // Прибираємо ефект "риб’ячого ока"
                 correctedDistance = MathF.Max(correctedDistance, 1f); // Захист від ділення на нуль
+                wallDistances[column] = correctedDistance; // Запам'ятовуємо глибину стіни для факелів
 
                 float wallHeight = map.TileSize * projectionDistance / correctedDistance; // Висота стіни на екрані
                 float wallTop = (frameHeight - wallHeight) / 2f; // Верхня точка стіни всередині кадру
@@ -145,6 +151,160 @@ namespace Wolfenstain3D
 
                     Color wallColor = ApplyShade(textureColor, shade); // Затемнюємо текстуру на відстані
                     framePixels[screenY * frameWidth + column] = wallColor.ToArgb(); // Записуємо піксель стіни або дверей у масив кадру
+                }
+            }
+        }
+
+        private void RenderWallTorches(int[] framePixels, int frameWidth, int frameHeight, Player player, GameMap map, float projectionDistance, float[] wallDistances)
+        {
+            List<WallTorch> torches = new List<WallTorch>(map.WallTorches); // Копія списку, щоб сортувати без зміни карти
+            torches.Sort((left, right) => CalculateDistanceSquared(right, player).CompareTo(CalculateDistanceSquared(left, player))); // Дальні факели малюємо першими
+
+            float startAngle = player.Angle - FieldOfView / 2f; // Кут лівого краю камери
+            float angleStep = FieldOfView / frameWidth; // Один промінь на кожну колонку екрана
+
+            foreach (WallTorch torch in torches)
+            {
+                for (int screenX = 0; screenX < frameWidth; screenX++)
+                {
+                    float rayAngle = startAngle + screenX * angleStep; // Кут променя для поточної колонки
+                    float rayDirectionX = MathF.Cos(rayAngle); // Напрямок променя по X
+                    float rayDirectionY = MathF.Sin(rayAngle); // Напрямок променя по Y
+                    float denominator = rayDirectionX * torch.NormalX + rayDirectionY * torch.NormalY; // Перевіряємо перетин з площиною факела
+
+                    if (denominator >= -0.01f)
+                    {
+                        continue; // Зворотний бік факела або майже паралельний промінь не малюємо
+                    }
+
+                    float deltaX = torch.X - player.X; // Вектор від гравця до факела по X
+                    float deltaY = torch.Y - player.Y; // Вектор від гравця до факела по Y
+                    float rayDistance = (deltaX * torch.NormalX + deltaY * torch.NormalY) / denominator; // Відстань до площини факела
+
+                    if (rayDistance <= 1f || rayDistance > MaxRayDistance)
+                    {
+                        continue; // Факел позаду, занадто близько або занадто далеко не малюємо
+                    }
+
+                    float hitX = player.X + rayDirectionX * rayDistance; // X-точка перетину променя з площиною факела
+                    float hitY = player.Y + rayDirectionY * rayDistance; // Y-точка перетину променя з площиною факела
+                    float localX = (hitX - torch.X) * torch.TangentX + (hitY - torch.Y) * torch.TangentY; // Горизонтальна позиція всередині факела
+                    float halfWidth = torch.WorldWidth / 2f; // Половина ширини факела у світі
+
+                    if (localX < -halfWidth || localX > halfWidth)
+                    {
+                        continue; // Промінь влучив у стіну поруч, але не у факел
+                    }
+
+                    float correctedDistance = rayDistance * MathF.Cos(rayAngle - player.Angle); // Прибираємо риб'яче око для висоти факела
+
+                    if (correctedDistance <= 1f || correctedDistance >= wallDistances[screenX])
+                    {
+                        continue; // Якщо перед факелом є стіна, не малюємо цю колонку
+                    }
+
+                    float spriteHeight = torch.WorldHeight * projectionDistance / correctedDistance; // Висота факела на екрані
+                    float spriteCenterY = frameHeight / 2f - spriteHeight * torch.VerticalOffset; // Піднімаємо факел на стіні
+                    int drawStartY = Math.Max(0, (int)(spriteCenterY - spriteHeight / 2f)); // Верхня межа малювання
+                    int drawEndY = Math.Min(frameHeight, (int)(spriteCenterY + spriteHeight / 2f)); // Нижня межа малювання
+                    int textureX = Math.Clamp((int)(((localX + halfWidth) / torch.WorldWidth) * torch.Texture.Width), 0, torch.Texture.Width - 1); // X-піксель PNG
+                    int shade = CalculateTorchShade(correctedDistance); // Факел трохи затемнюється на відстані
+
+                    for (int screenY = drawStartY; screenY < drawEndY; screenY++)
+                    {
+                        float texturePercentY = (screenY - (spriteCenterY - spriteHeight / 2f)) / spriteHeight; // Позиція по вертикалі PNG
+                        int textureY = Math.Clamp((int)(texturePercentY * torch.Texture.Height), 0, torch.Texture.Height - 1); // Y-піксель PNG
+                        int textureArgb = torch.Texture.GetArgb(textureX, textureY); // Колір PNG з прозорістю
+                        int alpha = (textureArgb >> 24) & 255; // Прозорість пікселя
+
+                        if (alpha < 15)
+                        {
+                            continue; // Прозорий фон факела не малюємо
+                        }
+
+                        Color shadedColor = ApplyShade(Color.FromArgb(textureArgb), shade); // Затемнюємо факел без втрати alpha
+                        int frameIndex = screenY * frameWidth + screenX; // Індекс пікселя у кадрі
+                        framePixels[frameIndex] = BlendArgb(framePixels[frameIndex], shadedColor.ToArgb()); // Накладаємо факел поверх сцени
+                    }
+                }
+            }
+        }
+
+        private void RenderKnights(int[] framePixels, int frameWidth, int frameHeight, Player player, GameMap map, float projectionDistance, float[] wallDistances)
+        {
+            List<Knight> knights = new List<Knight>(map.Knights); // Копія списку, щоб сортувати без зміни карти
+            knights.Sort((left, right) => CalculateDistanceSquared(right, player).CompareTo(CalculateDistanceSquared(left, player))); // Дальних рицарів малюємо першими
+
+            float startAngle = player.Angle - FieldOfView / 2f; // Кут лівого краю камери
+            float angleStep = FieldOfView / frameWidth; // Один промінь на кожну колонку екрана
+            float cameraHeight = map.TileSize / 2f; // Висота очей гравця над підлогою
+            float horizon = frameHeight / 2f; // Лінія горизонту сцени
+
+            foreach (Knight knight in knights)
+            {
+                for (int screenX = 0; screenX < frameWidth; screenX++)
+                {
+                    float rayAngle = startAngle + screenX * angleStep; // Кут променя для поточної колонки
+                    float rayDirectionX = MathF.Cos(rayAngle); // Напрямок променя по X
+                    float rayDirectionY = MathF.Sin(rayAngle); // Напрямок променя по Y
+                    float denominator = rayDirectionX * knight.NormalX + rayDirectionY * knight.NormalY; // Перетин з фіксованою площиною рицаря
+
+                    if (denominator >= -0.01f)
+                    {
+                        continue; // Рицар не розвертається до гравця: зворотний бік не малюємо
+                    }
+
+                    float deltaX = knight.X - player.X; // Вектор від гравця до площини рицаря по X
+                    float deltaY = knight.Y - player.Y; // Вектор від гравця до площини рицаря по Y
+                    float rayDistance = (deltaX * knight.NormalX + deltaY * knight.NormalY) / denominator; // Дистанція до площини рицаря
+
+                    if (rayDistance <= 1f || rayDistance > MaxRayDistance)
+                    {
+                        continue; // Рицар позаду, занадто близько або занадто далеко не малюється
+                    }
+
+                    float hitX = player.X + rayDirectionX * rayDistance; // X-точка перетину променя з площиною рицаря
+                    float hitY = player.Y + rayDirectionY * rayDistance; // Y-точка перетину променя з площиною рицаря
+                    float localX = (hitX - knight.X) * knight.TangentX + (hitY - knight.Y) * knight.TangentY; // Горизонтальна позиція всередині рицаря
+                    float halfWidth = knight.WorldWidth / 2f; // Половина ширини рицаря у світі
+
+                    if (localX < -halfWidth || localX > halfWidth)
+                    {
+                        continue; // Промінь пройшов поруч із рицарем
+                    }
+
+                    float correctedDistance = rayDistance * MathF.Cos(rayAngle - player.Angle); // Прибираємо риб'яче око для розміру рицаря
+
+                    if (correctedDistance <= 1f || correctedDistance >= wallDistances[screenX])
+                    {
+                        continue; // Якщо перед рицарем є стіна, ця колонка не видима
+                    }
+
+                    float spriteHeight = knight.WorldHeight * projectionDistance / correctedDistance; // Висота рицаря після перспективи
+                    float floorY = horizon + cameraHeight * projectionDistance / correctedDistance; // Підлога в точці, де стоїть рицар
+                    float spriteTop = floorY - spriteHeight; // Верх рицаря, коли ступні стоять на підлозі
+                    float spriteBottom = floorY; // Низ рицаря прив'язаний до підлоги
+                    int drawStartY = Math.Max(0, (int)spriteTop); // Верхня межа рицаря в кадрі
+                    int drawEndY = Math.Min(frameHeight, (int)spriteBottom); // Нижня межа рицаря в кадрі
+                    int textureX = Math.Clamp((int)(((localX + halfWidth) / knight.WorldWidth) * knight.Texture.Width), 0, knight.Texture.Width - 1); // X-піксель PNG
+                    int shade = CalculateKnightShade(correctedDistance); // Рицар темнішає залежно від відстані
+
+                    for (int screenY = drawStartY; screenY < drawEndY; screenY++)
+                    {
+                        float texturePercentY = (screenY - spriteTop) / spriteHeight; // Позиція всередині PNG по Y
+                        int textureY = Math.Clamp((int)(texturePercentY * knight.Texture.Height), 0, knight.Texture.Height - 1); // Y-піксель PNG
+                        int textureArgb = knight.Texture.GetArgb(textureX, textureY); // Колір PNG з прозорістю
+                        int alpha = (textureArgb >> 24) & 255; // Прозорість пікселя
+
+                        if (alpha < 15)
+                        {
+                            continue; // Прозорий фон рицаря не малюємо
+                        }
+
+                        Color shadedColor = ApplyShade(Color.FromArgb(textureArgb), shade); // Затемнюємо рицаря без втрати alpha
+                        int frameIndex = screenY * frameWidth + screenX; // Індекс пікселя у кадрі
+                        framePixels[frameIndex] = BlendArgb(framePixels[frameIndex], shadedColor.ToArgb()); // Накладаємо рицаря поверх сцени
+                    }
                 }
             }
         }
@@ -212,6 +372,22 @@ namespace Wolfenstain3D
             }
         }
 
+        private static float CalculateDistanceSquared(WallTorch torch, Player player)
+        {
+            float deltaX = torch.X - player.X; // Відстань до факела по X
+            float deltaY = torch.Y - player.Y; // Відстань до факела по Y
+
+            return deltaX * deltaX + deltaY * deltaY; // Квадрат відстані достатній для сортування
+        }
+
+        private static float CalculateDistanceSquared(Knight knight, Player player)
+        {
+            float deltaX = knight.X - player.X; // Відстань до рицаря по X
+            float deltaY = knight.Y - player.Y; // Відстань до рицаря по Y
+
+            return deltaX * deltaX + deltaY * deltaY; // Квадрат відстані достатній для сортування
+        }
+
         private static int CalculateWallShade(float distance)
         {
             int shade = 255 - (int)(distance * 0.35f); // Чим далі стіна, тим темніша
@@ -228,6 +404,18 @@ namespace Wolfenstain3D
         {
             int shade = 255 - (int)(distance * 0.18f); // Стеля теж має легке затемнення на відстані
             return Math.Clamp(shade, 95, 235); // Тримаємо стелю читабельною
+        }
+
+        private static int CalculateKnightShade(float distance)
+        {
+            int shade = 255 - (int)(distance * 0.25f); // Рицар темнішає з відстанню
+            return Math.Clamp(shade, 65, 230); // Не даємо рицарю стати повністю чорним
+        }
+
+        private static int CalculateTorchShade(float distance)
+        {
+            int shade = 255 - (int)(distance * 0.2f); // Факел темнішає м'якше, щоб полум'я лишалося помітним
+            return Math.Clamp(shade, 90, 245); // Не робимо факел занадто темним
         }
 
         private static int CalculateTextureX(float rayX, float rayY, int tileSize)
@@ -262,6 +450,30 @@ namespace Wolfenstain3D
             return Color.FromArgb(color.A, red, green, blue); // Повертаємо фінальний колір зі збереженою прозорістю
         }
 
+        private static int BlendArgb(int backgroundArgb, int foregroundArgb)
+        {
+            int alpha = (foregroundArgb >> 24) & 255; // Прозорість пікселя факела
+
+            if (alpha >= 255)
+            {
+                return foregroundArgb; // Непрозорий піксель замінює фон
+            }
+
+            int inverseAlpha = 255 - alpha; // Частка фонового пікселя після накладання
+            int foregroundRed = (foregroundArgb >> 16) & 255; // Червоний канал факела
+            int foregroundGreen = (foregroundArgb >> 8) & 255; // Зелений канал факела
+            int foregroundBlue = foregroundArgb & 255; // Синій канал факела
+            int backgroundRed = (backgroundArgb >> 16) & 255; // Червоний канал фону
+            int backgroundGreen = (backgroundArgb >> 8) & 255; // Зелений канал фону
+            int backgroundBlue = backgroundArgb & 255; // Синій канал фону
+
+            int red = (foregroundRed * alpha + backgroundRed * inverseAlpha) / 255; // Змішаний червоний канал
+            int green = (foregroundGreen * alpha + backgroundGreen * inverseAlpha) / 255; // Змішаний зелений канал
+            int blue = (foregroundBlue * alpha + backgroundBlue * inverseAlpha) / 255; // Змішаний синій канал
+
+            return Color.FromArgb(255, red, green, blue).ToArgb(); // Кадр залишається повністю непрозорим
+        }
+
         private readonly struct RayHit
         {
             public RayHit(PointF point, float distance, bool isDoor, int textureX)
@@ -279,5 +491,3 @@ namespace Wolfenstain3D
         }
     }
 }
-
-

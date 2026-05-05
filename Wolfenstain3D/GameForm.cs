@@ -1,47 +1,53 @@
-using System.Drawing; // Потрібно для Color і Size
-using System.Windows.Forms; // Потрібно для Form та PaintEventArgs
+using System.Drawing; // РџРѕС‚СЂС–Р±РЅРѕ РґР»СЏ Color С– Size
+using System.Windows.Forms; // РџРѕС‚СЂС–Р±РЅРѕ РґР»СЏ Form С‚Р° PaintEventArgs
 
 namespace Wolfenstain3D
 {
     public partial class GameForm : Form
     {
-        private readonly Game _game; // Основний об’єкт гри
+        private readonly Game _game; // РћСЃРЅРѕРІРЅРёР№ РѕР±вЂ™С”РєС‚ РіСЂРё
 
         public GameForm()
         {
-            InitializeComponent(); // Ініціалізація компонентів форми
+            InitializeComponent(); // Р†РЅС–С†С–Р°Р»С–Р·Р°С†С–СЏ РєРѕРјРїРѕРЅРµРЅС‚С–РІ С„РѕСЂРјРё
 
-            Text = "Wolfenstain3D"; // Заголовок вікна
-            StartPosition = FormStartPosition.CenterScreen; // Запуск по центру екрана
-            BackColor = Color.Black; // Чорний фон
-            FormBorderStyle = FormBorderStyle.FixedSingle; // Фіксований розмір вікна
-            MaximizeBox = false; // Вимикаємо розгортання
-            MinimizeBox = true; // Дозволяємо згортання
-            KeyPreview = true; // Форма ловить натискання клавіш
-            ClientSize = new Size(1100, 640); // Збільшений розмір, щоб вмістити 3D-вид і міні-мапу
-            DoubleBuffered = true; // Менше мерехтіння
+            Text = "Wolfenstain3D"; // Р—Р°РіРѕР»РѕРІРѕРє РІС–РєРЅР°
+            StartPosition = FormStartPosition.CenterScreen; // Р—Р°РїСѓСЃРє РїРѕ С†РµРЅС‚СЂСѓ РµРєСЂР°РЅР°
+            BackColor = Color.Black; // Р§РѕСЂРЅРёР№ С„РѕРЅ
+            FormBorderStyle = FormBorderStyle.FixedSingle; // Р¤С–РєСЃРѕРІР°РЅРёР№ СЂРѕР·РјС–СЂ РІС–РєРЅР°
+            MaximizeBox = false; // Р’РёРјРёРєР°С”РјРѕ СЂРѕР·РіРѕСЂС‚Р°РЅРЅСЏ
+            MinimizeBox = true; // Р”РѕР·РІРѕР»СЏС”РјРѕ Р·РіРѕСЂС‚Р°РЅРЅСЏ
+            KeyPreview = true; // Р¤РѕСЂРјР° Р»РѕРІРёС‚СЊ РЅР°С‚РёСЃРєР°РЅРЅСЏ РєР»Р°РІС–С€
+            ClientSize = new Size(1100, 640); // Р—Р±С–Р»СЊС€РµРЅРёР№ СЂРѕР·РјС–СЂ, С‰РѕР± РІРјС–СЃС‚РёС‚Рё 3D-РІРёРґ С– РјС–РЅС–-РјР°РїСѓ
+            DoubleBuffered = true; // РњРµРЅС€Рµ РјРµСЂРµС…С‚С–РЅРЅСЏ
 
-            _game = new Game(this); // Створюємо об’єкт гри
-            Paint += GameForm_Paint; // Підписуємося на подію малювання
-            KeyDown += GameForm_KeyDown; // Підписуємося на натискання клавіш
-            KeyUp += GameForm_KeyUp; // Підписуємося на відпускання клавіш
+            _game = new Game(this); // РЎС‚РІРѕСЂСЋС”РјРѕ РѕР±вЂ™С”РєС‚ РіСЂРё
+            Paint += GameForm_Paint; // РџС–РґРїРёСЃСѓС”РјРѕСЃСЏ РЅР° РїРѕРґС–СЋ РјР°Р»СЋРІР°РЅРЅСЏ
+            KeyDown += GameForm_KeyDown; // РџС–РґРїРёСЃСѓС”РјРѕСЃСЏ РЅР° РЅР°С‚РёСЃРєР°РЅРЅСЏ РєР»Р°РІС–С€
+            KeyUp += GameForm_KeyUp; // РџС–РґРїРёСЃСѓС”РјРѕСЃСЏ РЅР° РІС–РґРїСѓСЃРєР°РЅРЅСЏ РєР»Р°РІС–С€
+            FormClosed += GameForm_FormClosed; // Р—СѓРїРёРЅСЏС”РјРѕ РіСЂСѓ С– Р·РІСѓРєРё РїСЂРё Р·Р°РєСЂРёС‚С‚С– С„РѕСЂРјРё
 
-            _game.Start(); // Запускаємо гру
+            _game.Start(); // Р—Р°РїСѓСЃРєР°С”РјРѕ РіСЂСѓ
         }
 
         private void GameForm_Paint(object? sender, PaintEventArgs e)
         {
-            _game.Render(e.Graphics); // Передаємо малювання в клас Game
+            _game.Render(e.Graphics); // РџРµСЂРµРґР°С”РјРѕ РјР°Р»СЋРІР°РЅРЅСЏ РІ РєР»Р°СЃ Game
         }
 
         private void GameForm_KeyDown(object? sender, KeyEventArgs e)
         {
-            _game.KeyDown(e.KeyCode); // Передаємо натиснуту клавішу в гру
+            _game.KeyDown(e.KeyCode); // РџРµСЂРµРґР°С”РјРѕ РЅР°С‚РёСЃРЅСѓС‚Сѓ РєР»Р°РІС–С€Сѓ РІ РіСЂСѓ
         }
 
         private void GameForm_KeyUp(object? sender, KeyEventArgs e)
         {
-            _game.KeyUp(e.KeyCode); // Передаємо відпущену клавішу в гру
+            _game.KeyUp(e.KeyCode); // РџРµСЂРµРґР°С”РјРѕ РІС–РґРїСѓС‰РµРЅСѓ РєР»Р°РІС–С€Сѓ РІ РіСЂСѓ
+        }
+
+        private void GameForm_FormClosed(object? sender, FormClosedEventArgs e)
+        {
+            _game.Stop(); // Р—СѓРїРёРЅСЏС”РјРѕ С‚Р°Р№РјРµСЂ, РјСѓР·РёРєСѓ С‚Р° Р·РІСѓРєРё РїРµСЂРµРґ РІРёС…РѕРґРѕРј
         }
     }
 }
