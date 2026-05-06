@@ -23,33 +23,33 @@ namespace Wolfenstain3D
             float moveSpeed = 2.5f; // Ўвидк≥сть руху гравц€
             float rotationSpeed = 0.05f; // Ўвидк≥сть повороту гравц€
 
-            if (input.IsKeyPressed(Keys.A))
+            if (input.IsKeyPressed(Keys.A)) // ѕерев≥р€Їмо, чи натиснута клав≥ша A дл€ повороту вл≥во
             {
                 Angle -= rotationSpeed; // ѕовертаЇмо гравц€ вл≥во
             }
 
-            if (input.IsKeyPressed(Keys.D))
+            if (input.IsKeyPressed(Keys.D)) // ѕерев≥р€Їмо, чи натиснута клав≥ша D дл€ повороту вправо
             {
                 Angle += rotationSpeed; // ѕовертаЇмо гравц€ вправо
             }
 
-            if (input.IsKeyPressed(Keys.W))
+            if (input.IsKeyPressed(Keys.W)) // ѕерев≥р€Їмо, чи натиснута клав≥ша W дл€ руху вперед
             {
                 TryMove(MathF.Cos(Angle) * moveSpeed, MathF.Sin(Angle) * moveSpeed, map); // –ух вперед
             }
 
-            if (input.IsKeyPressed(Keys.S))
+            if (input.IsKeyPressed(Keys.S)) // ѕерев≥р€Їмо, чи натиснута клав≥ша S дл€ руху назад
             {
                 TryMove(-MathF.Cos(Angle) * moveSpeed, -MathF.Sin(Angle) * moveSpeed, map); // –ух назад
             }
 
-            if (input.IsKeyPressed(Keys.Q))
+            if (input.IsKeyPressed(Keys.Q)) // ѕерев≥р€Їмо, чи натиснута клав≥ша Q дл€ руху боком вл≥во
             {
                 float strafeAngle = Angle - MathF.PI / 2; //  ут дл€ руху вл≥во
                 TryMove(MathF.Cos(strafeAngle) * moveSpeed, MathF.Sin(strafeAngle) * moveSpeed, map); // –ух вл≥во
             }
 
-            if (input.IsKeyPressed(Keys.E))
+            if (input.IsKeyPressed(Keys.E)) // ѕерев≥р€Їмо, чи натиснута клав≥ша E дл€ руху боком вправо
             {
                 float strafeAngle = Angle + MathF.PI / 2; //  ут дл€ руху вправо
                 TryMove(MathF.Cos(strafeAngle) * moveSpeed, MathF.Sin(strafeAngle) * moveSpeed, map); // –ух вправо

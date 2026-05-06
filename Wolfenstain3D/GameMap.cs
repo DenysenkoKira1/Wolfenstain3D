@@ -49,9 +49,9 @@ namespace Wolfenstain3D
 
             bool playerStartFound = false; // Прапорець, що старт гравця знайдено на карті
 
-            for (int y = 0; y < layout.Length; y++)
+            for (int y = 0; y < layout.Length; y++) // Проходимо по всіх рядках текстової карти
             {
-                for (int x = 0; x < layout[y].Length; x++)
+                for (int x = 0; x < layout[y].Length; x++) // Проходимо по всіх символах поточного рядка карти
                 {
                     char tile = layout[y][x]; // Поточний символ карти
 
@@ -100,7 +100,7 @@ namespace Wolfenstain3D
 
         public bool IsDoor(int tileX, int tileY)
         {
-            if (tileX < 0 || tileY < 0 || tileX >= Width || tileY >= Height)
+            if (tileX < 0 || tileY < 0 || tileX >= Width || tileY >= Height) // Перевіряємо, чи координати клітинки не вийшли за межі карти
             {
                 return false; // За межами карти дверей немає
             }
@@ -140,7 +140,7 @@ namespace Wolfenstain3D
 
         public bool IsWall(int tileX, int tileY)
         {
-            if (tileX < 0 || tileY < 0 || tileX >= Width || tileY >= Height)
+            if (tileX < 0 || tileY < 0 || tileX >= Width || tileY >= Height) // Перевіряємо, чи координати стіни не вийшли за межі карти
             {
                 return true; // За межами карти вважаємо стіною
             }
@@ -165,7 +165,7 @@ namespace Wolfenstain3D
             int tileX = (int)(worldX / TileSize); // Клітинка карти по X для точки світу
             int tileY = (int)(worldY / TileSize); // Клітинка карти по Y для точки світу
 
-            if (tileX < 0 || tileY < 0 || tileX >= Width || tileY >= Height)
+            if (tileX < 0 || tileY < 0 || tileX >= Width || tileY >= Height) // Перевіряємо, чи точка світу не потрапила за межі карти
             {
                 return true; // За межами карти точка вважається заблокованою
             }
@@ -192,9 +192,9 @@ namespace Wolfenstain3D
             using Brush doorBrush = new SolidBrush(Color.DarkGoldenrod); // Колір дверей
             using Pen gridPen = new Pen(Color.FromArgb(60, Color.White)); // Лінії сітки
 
-            for (int y = 0; y < Height; y++)
+            for (int y = 0; y < Height; y++) // Проходимо по всіх рядках карти для міні-мапи
             {
-                for (int x = 0; x < Width; x++)
+                for (int x = 0; x < Width; x++) // Проходимо по всіх клітинках поточного рядка для міні-мапи
                 {
                     int screenX = mapX + x * cellSize; // X клітинки на екрані
                     int screenY = mapY + y * cellSize; // Y клітинки на екрані
@@ -333,12 +333,12 @@ namespace Wolfenstain3D
         {
             int maxDistance = Math.Max(Width, Height); // Максимальна дистанція пошуку в межах карти
 
-            for (int distance = 1; distance <= maxDistance; distance++)
+            for (int distance = 1; distance <= maxDistance; distance++) // Рухаємось від рицаря до найближчої стіни
             {
                 int checkX = tileX + stepX * distance; // Клітинка перевірки по X
                 int checkY = tileY + stepY * distance; // Клітинка перевірки по Y
 
-                if (checkX < 0 || checkY < 0 || checkX >= Width || checkY >= Height)
+                if (checkX < 0 || checkY < 0 || checkX >= Width || checkY >= Height) // Перевіряємо, чи пошук стіни не вийшов за межі карти
                 {
                     return distance; // Край карти теж вважаємо найближчою межею кімнати
                 }
@@ -382,9 +382,9 @@ namespace Wolfenstain3D
 
         private void CreateDoors()
         {
-            for (int y = 0; y < Height; y++)
+            for (int y = 0; y < Height; y++) // Проходимо по всіх рядках карти, щоб знайти двері
             {
-                for (int x = 0; x < Width; x++)
+                for (int x = 0; x < Width; x++) // Перевіряємо кожну клітинку поточного рядка на двері
                 {
                     if (_tiles[y, x] == 2)
                     {
@@ -425,7 +425,7 @@ namespace Wolfenstain3D
 
         private bool IsStaticWall(int tileX, int tileY)
         {
-            if (tileX < 0 || tileY < 0 || tileX >= Width || tileY >= Height)
+            if (tileX < 0 || tileY < 0 || tileX >= Width || tileY >= Height) // Перевіряємо, чи сусідня клітинка дверей існує на карті
             {
                 return false; // За межами карти не шукаємо стіну для напрямку дверей
             }
